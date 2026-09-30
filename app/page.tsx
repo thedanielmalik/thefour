@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useMemo, useRef, useState } from 'react';
+import { fourApi } from '../lib/four-api';
 
 type Member = { file: File | null; name: string; preview: string | null };
 type Cinema = { name: string; area: string; showtimes: string[] };
@@ -14,7 +15,7 @@ type Cinema = { name: string; area: string; showtimes: string[] };
 
 const freshMembers = (): Member[] => [1,2,3,4].map(() => ({ file:null, name:'', preview:null }));
 
-async function trackEvent(code: string | undefined, eventType: 'created'|'photo_uploaded'|'artwork_generated'|'shared'|'invited'|'member_joined'|'registered'|'cinema_selected'|'ticket_clicked'|'reward_qualified'|'reward_claimed'|'attended', channel?: string, metadata?: Record<string, unknown>) {\n  try { await fetch('/api/fours/events',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({code,eventType,channel,metadata})}); } catch {}\n}\n\nfunction makeCode() {
+async function trackEvent(code: string | undefined, eventType: 'created'|'photo_uploaded'|'artwork_generated'|'shared'|'invited'|'member_joined'|'registered'|'cinema_selected'|'ticket_clicked'|'reward_qualified'|'reward_claimed'|'attended', channel?: string, metadata?: Record<string, unknown>) {\n  try { await fourApi('/events',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({code,eventType,channel,metadata})}); } catch {}\n}\n\nfunction makeCode() {
   const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
   let code = 'F4-';
   for (let i=0;i<6;i++) code += chars[Math.floor(Math.random()*chars.length)];
@@ -52,7 +53,7 @@ export default function Home() {
 
   useEffect(()=>{
     const invited=new URLSearchParams(window.location.search).get('four');
-    if(invited){setCode(invited);setIsInvite(true);setOpen(true);setStep(4);setApiNote('Loading the Four…'); fetch('/api/fours?code='+encodeURIComponent(invited)).then(r=>r.json()).then(d=>{if(Array.isArray(d.members))setInviteMembers(d.members); setApiNote('You have been invited into an existing Four. Claim your place below.');}).catch(()=>setApiNote('Complete your details below to claim your place.'));}
+    if(invited){setCode(invited);setIsInvite(true);setOpen(true);setStep(4);setApiNote('Loading the Four…'); fourApi('/fours?code='+encodeURIComponent(invited)).then(r=>r.json()).then(d=>{if(Array.isArray(d.members))setInviteMembers(d.members); setApiNote('You have been invited into an existing Four. Claim your place below.');}).catch(()=>setApiNote('Complete your details below to claim your place.'));}
   },[]);
 
   function reset() {
@@ -128,7 +129,7 @@ export default function Home() {
     if(!regName.trim()||!regPhone.trim()||!consent){alert('Complete your name, phone and consent to continue.');return;}
     setBusy(true);setApiNote('');
     try{
-      const finalCode=code||makeCode();setCode(finalCode);const res=await fetch('/api/fours',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({code:finalCode,name:regName.trim(),phone:regPhone.trim(),email:regEmail.trim(),consent})});
+      const finalCode=code||makeCode();setCode(finalCode);const res=await fourApi('/fours',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({code:finalCode,name:regName.trim(),phone:regPhone.trim(),email:regEmail.trim(),consent})});
       const data=await res.json();
       if(!res.ok&&!data.demo)throw new Error(data.error||'Registration failed.');
       setRegistered(true);
