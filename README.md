@@ -32,4 +32,8 @@ Never put the Supabase service-role key in the browser or repository. The public
 
 ## Deployment
 
-GitHub Pages builds use /thefour as the site base path. Vercel and other hosts can run with the default root path.
+GitHub Pages is configured to deploy automatically from main using GitHub Actions, with the site base path set to /thefour.
+
+Public site: https://thedanielmalik.github.io/thefour/
+
+The repository can also be run locally with the default root path.
