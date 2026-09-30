@@ -11,6 +11,7 @@ create table if not exists public.four_squads (
   preferred_cinema text,
   preferred_date date,
   preferred_showtime text,
+  artwork_url text,
   consent boolean not null default false,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
@@ -84,8 +85,6 @@ before update on public.four_squads
 for each row execute function public.set_updated_at();
 
 
-alter function public.set_four_updated_at() set search_path = public;
-
 create or replace view public.four_campaign_metrics
 with (security_invoker = true)
 as
@@ -94,4 +93,6 @@ select
   (select count(*) from public.four_members) as people_registered,
   (select count(*) from public.campaign_events where event_type = 'shared') as social_shares,
   (select count(*) from public.campaign_events where event_type = 'cinema_selected') as cinema_intent,
-  (select count(*) from public.reward_claims where status in ('qualified','claimed')) as rewards_qualified;
+  (select count(*) from public.reward_claims where status in ('qualified','claimed')) as rewards_qualified,
+  (select count(*) from public.four_squads where status='complete') as complete_fours,
+  (select count(*) from public.campaign_events where event_type='ticket_clicked') as ticket_clicks;
