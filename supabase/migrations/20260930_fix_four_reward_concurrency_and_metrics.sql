@@ -30,8 +30,9 @@ begin
 
   if existing_code is not null then
     update public.four_squads set status = 'complete' where id = p_squad_id;
-    select count(*) into current_count from public.reward_claims rc
-      where rc.created_at <= (select r2.created_at from public.reward_claims r2 where r2.squad_id=p_squad_id limit 1);
+    select count(*) into current_count
+    from public.reward_claims rc
+    where rc.created_at <= existing_created_at;
     return query select true, existing_code, current_count;
     return;
   end if;
