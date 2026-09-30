@@ -22,9 +22,9 @@ async function trackEvent(code: string | undefined, eventType: 'created'|'photo_
 
 function makeCode() {
   const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
-  let code = 'F4-';
-  for (let i=0;i<6;i++) code += chars[Math.floor(Math.random()*chars.length)];
-  return code;
+  const values = new Uint32Array(6);
+  crypto.getRandomValues(values);
+  return 'F4-' + Array.from(values, value => chars[value % chars.length]).join('');
 }
 
 function drawCover(ctx: CanvasRenderingContext2D, img: HTMLImageElement, x: number, y: number, w: number, h: number) {
@@ -184,7 +184,7 @@ export default function Home() {
     if(!regName.trim()||!regPhone.trim()||!consent){alert('Complete your name, phone and consent to continue.');return;}
     setBusy(true);setApiNote('');
     try{
-      const finalCode=code||makeCode();setCode(finalCode);const res=await fourApi('/fours',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({code:finalCode,name:regName.trim(),phone:regPhone.trim(),email:regEmail.trim(),consent})});
+      const finalCode=(code||makeCode()).trim().toUpperCase();setCode(finalCode);const res=await fourApi('/fours',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({code:finalCode,name:regName.trim(),phone:regPhone.trim(),email:regEmail.trim(),consent})});
       const data=await res.json();
       if(!res.ok&&!data.demo)throw new Error(data.error||'Registration failed.');
       setRegistered(true);
