@@ -158,7 +158,7 @@ export default function Home() {
     }finally{setBusy(false);}
   }
 
-  function inviteUrl(){const u=new URL(window.location.href);const base=u.pathname.replace(/\/?$/,'/');u.pathname=base+'four';u.search='';u.searchParams.set('code',code||makeCode());return u.toString();}
+  function inviteUrl(){const u=new URL(window.location.href);const base=u.pathname.replace(/\/?$/,'/');u.pathname=base+'four/';u.search='';u.searchParams.set('code',code||makeCode());return u.toString();}
 
   async function shareFour(){
     if(!artworkBlob)return;
