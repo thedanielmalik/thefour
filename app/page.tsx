@@ -96,14 +96,14 @@ export default function Home() {
     });
   }
 
-  async function persistPhoto(codeValue:string,memberNo:number,file:File){
-    const dataUrl=await fileToDataUrl(file); const res=await fourApi('/photos',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({code:codeValue,memberNumber:memberNo,dataUrl})});
+  async function persistPhoto(codeValue:string,memberNo:number,file:File,phone:string){
+    const dataUrl=await fileToDataUrl(file); const res=await fourApi('/photos',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({code:codeValue,memberNumber:memberNo,phone,dataUrl})});
     if(!res.ok){const d=await res.json();throw new Error(d.error||'Could not save photo.');}
     return (await res.json()).photo_url as string;
   }
 
-  async function persistArtwork(codeValue:string,dataUrl:string){
-    const res=await fourApi('/artwork',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({code:codeValue,dataUrl})});
+  async function persistArtwork(codeValue:string,dataUrl:string,phone:string){
+    const res=await fourApi('/artwork',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({code:codeValue,phone,dataUrl})});
     if(!res.ok){const d=await res.json();throw new Error(d.error||'Could not save artwork.');}
     return (await res.json()).artwork_url as string;
   }
@@ -124,7 +124,7 @@ export default function Home() {
       const margin=46,gap=16,tileW=(1080-margin*2-gap)/2,tileH=480,top=148;
       imgs.forEach((img,i)=>{const x=margin+(i%2)*(tileW+gap),y=top+Math.floor(i/2)*(tileH+gap);ctx.save();ctx.beginPath();ctx.roundRect(x,y,tileW,tileH,24);ctx.clip();drawCover(ctx,img,x,y,tileW,tileH);ctx.restore();ctx.strokeStyle='#6f1d2b';ctx.lineWidth=4;ctx.strokeRect(x,y,tileW,tileH);ctx.fillStyle='rgba(18,18,18,.70)';ctx.fillRect(x,y+tileH-62,tileW,62);ctx.fillStyle='#fff';ctx.textAlign='left';ctx.font='700 17px Arial,sans-serif';ctx.fillText((current[i].name||('MEMBER '+String(i+1).padStart(2,'0'))).toUpperCase(),x+16,y+tileH-24);});
       ctx.textAlign='center';ctx.fillStyle='#6f1d2b';ctx.font='700 37px Georgia,serif';ctx.fillText('WHO ARE YOUR FOUR?',540,1215);ctx.fillStyle='#173b4d';ctx.font='700 17px Arial,sans-serif';ctx.fillText('FIND YOUR FOUR  •  BRING YOUR FOUR  •  WATCH THE FOUR',540,1250);ctx.fillStyle='#665a54';ctx.font='15px Arial,sans-serif';ctx.fillText('FOUR CODE: '+code,540,1290);
-      const url=canvas.toDataURL('image/jpeg',.94);setArtwork(url);setArtworkBlob(await new Promise<Blob|null>(resolve=>canvas.toBlob(resolve,'image/jpeg',.94)));const persisted=await persistArtwork(code,url);setSharedArtworkUrl(persisted);setApiNote('Your shared Four artwork has been refreshed for everyone in the Four Room.');void trackEvent(code,'artwork_generated','web',{memberCount:4,persisted:true});
+      const url=canvas.toDataURL('image/jpeg',.94);setArtwork(url);setArtworkBlob(await new Promise<Blob|null>(resolve=>canvas.toBlob(resolve,'image/jpeg',.94)));const persisted=await persistArtwork(code,url,regPhone);setSharedArtworkUrl(persisted);setApiNote('Your shared Four artwork has been refreshed for everyone in the Four Room.');void trackEvent(code,'artwork_generated','web',{memberCount:4,persisted:true});
     }catch(e){setApiNote(e instanceof Error?e.message:'Could not refresh the shared artwork.');}finally{setBusy(false);}
   }
 
@@ -190,15 +190,16 @@ export default function Home() {
       if(!res.ok&&!data.demo)throw new Error(data.error||'Registration failed.');
       setRegistered(true);
       setMemberNumber(Number(data.memberNumber||1));
+      let syncError='';
       try{
-        if(finalCode && isInvite && invitePhoto && data.memberNumber) await persistPhoto(finalCode,Number(data.memberNumber),invitePhoto);
-        if(finalCode && !isInvite && members[0]?.file) await persistPhoto(finalCode,1,members[0].file);
-        if(finalCode && artwork) await persistArtwork(finalCode,artwork);
+        if(finalCode && isInvite && invitePhoto && data.memberNumber) await persistPhoto(finalCode,Number(data.memberNumber),invitePhoto,regPhone.trim());
+        if(finalCode && !isInvite && members[0]?.file) await persistPhoto(finalCode,1,members[0].file,regPhone.trim());
+        if(finalCode && artwork) await persistArtwork(finalCode,artwork,regPhone.trim());
         await refreshSquad(finalCode);
         const rr=await fourApi('/reward',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({code:finalCode})});
         if(rr.ok){const rd=await rr.json();setReward(rd.qualified!==undefined?rd:null);}
-      }catch(uploadError){setApiNote(uploadError instanceof Error?uploadError.message:'Registration saved, but one media item still needs to sync.');}
-      if(!apiNote) setApiNote(data.demo?'Prototype mode: registration remains local until the campaign database is connected.':'Your Four registration is saved and your Four Room is live.');
+      }catch(syncErrorValue){syncError=syncErrorValue instanceof Error?syncErrorValue.message:'Registration saved, but one media item still needs to sync.';}
+      setApiNote(syncError || (data.demo?'Prototype mode: registration remains local until the campaign database is connected.':'Your Four registration is saved and your Four Room is live.'));
     }catch(e){
       setRegistered(false);
       setApiNote(e instanceof Error?e.message:'Registration failed. Please try again.');
