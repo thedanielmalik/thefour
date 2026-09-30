@@ -4,7 +4,8 @@ import './globals.css';
 
 export const metadata: Metadata = {
   title: 'The Four — Find Your Four',
-  description: 'Find your Four. Create your Four. Share your Four. Watch THE FOUR.',\n  manifest: '/manifest.webmanifest'
+  description: 'Find your Four. Create your Four. Share your Four. Watch THE FOUR.',
+  manifest: '/manifest.webmanifest'
 };
 
 export default function RootLayout({ children }: Readonly<{ children: ReactNode }>) {
