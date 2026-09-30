@@ -497,24 +497,27 @@ export default function Home() {
     <header className="topbar shell"><div className="wordmark">THE FOUR</div><div className="topbar-note">FIND YOUR FOUR • WAWO BRAND HOUSE</div></header>
 
     <section className="hero shell">
-      <div className="hero-copy">
-        <div className="hero-badge"><span>THE FOUR</span><b>FIND YOUR FOUR</b></div>
-        <div className="eyebrow">NO ONE FIGHTS ALONE</div>
-        <h1>Everybody<br/><em>has a Four.</em></h1>
-        <p>The people you call first. The friends who show up. The people you want beside you when something big happens.</p>
-        <div className="hero-actions"><button className="btn btn-primary" onClick={()=>{setOpen(true);setStep(1)}}>Create My Four</button><a className="btn btn-ghost" href="#how">See how it works</a></div>
-        <div className="hero-rule"><span>01</span><i/><span>02</span><i/><span>03</span><i/><span>04</span></div>
-      </div>
-      <div className="hero-poster">{posterUrl?<img src={posterUrl} alt="THE FOUR official campaign artwork"/>:<><div className="poster-kicker">A FUNKE AKINDELE FILM</div><div className="poster-title">THE<br/><span>FOUR</span></div><div className="poster-sub">NO ONE FIGHTS ALONE</div><div className="poster-spark">✦</div><div className="poster-silhouette">{[1,2,3,4].map(n=><span key={n}>{n}</span>)}</div><div className="poster-note">IN CINEMAS<br/><strong>DECEMBER 11</strong></div><div className="poster-year">2026</div></>}</div>
-      <div className="hero-floating-silhouettes" aria-hidden="true">
-        <div className="hero-ghost-four">4</div>
+      <div className="hero-art-direction" aria-hidden="true">
+        <div className="hero-orbit orbit-one"/><div className="hero-orbit orbit-two"/><div className="hero-light light-one"/><div className="hero-light light-two"/>
+        <div className="hero-giant-four">4</div>
         <div className="hero-silhouette-stage">
           <div className="silhouette-person s1"><span>01</span></div>
           <div className="silhouette-person s2"><span>02</span></div>
           <div className="silhouette-person s3"><span>03</span></div>
           <div className="silhouette-person s4"><span>04</span></div>
         </div>
+        <div className="hero-bottom-strip"><span>01</span><span>02</span><span>03</span><span>04</span></div>
       </div>
+      <div className="hero-copy">
+        <div className="hero-badge"><span>THE FOUR</span><b>FIND YOUR FOUR</b></div>
+        <div className="eyebrow">NO ONE FIGHTS ALONE</div>
+        <h1>Everybody<br/><em>has a Four.</em></h1>
+        <p>Find the four people you want beside you. Turn your Four into a campaign poster. Then bring the four of you to the cinema.</p>
+        <div className="hero-actions"><button className="btn btn-primary" onClick={()=>{setOpen(true);setStep(1)}}>Create My Four</button><a className="btn btn-ghost" href="#how">See how it works</a></div>
+        <div className="hero-rule"><span>01</span><i/><span>02</span><i/><span>03</span><i/><span>04</span></div>
+        <div className="hero-release"><span>IN CINEMAS</span><strong>DECEMBER 11</strong><i/> <b>2026</b></div>
+      </div>
+      <div className="hero-poster">{posterUrl?<img src={posterUrl} alt="THE FOUR official campaign artwork"/>:<><div className="poster-kicker">A FUNKE AKINDELE FILM</div><div className="poster-title">THE<br/><span>FOUR</span></div><div className="poster-sub">NO ONE FIGHTS ALONE</div><div className="poster-spark">✦</div><div className="poster-silhouette">{[1,2,3,4].map(n=><span key={n}>{n}</span>)}</div><div className="poster-note">IN CINEMAS<br/><strong>DECEMBER 11</strong></div><div className="poster-year">2026</div></>}</div>
     </section>
 
     <section className="section shell live-feed-section"><div className="eyebrow">LIVE FROM THE FOUR</div><div className="live-feed-head"><div><h2>The Four is growing.</h2><p className="lead">Real-time campaign activity from people who chose to appear on the public feed.</p></div><span className="live-dot">LIVE</span></div><div className="live-feed-grid">{activity.length?activity.slice(0,8).map((item,i)=>{const places=Math.min(4,Math.max(1,item.member_count));return <article className="feed-item" key={item.display_name+'-'+item.joined_at+'-'+i}><div className="feed-number">0{item.member_number}</div><div className="feed-copy"><strong>{item.display_name}</strong><span>{item.member_number===1?'just started a Four':'just joined a Four'}</span><small>{places}/4 places filled</small></div><b className="feed-pulse">●</b></article>}):<div className="feed-empty">Be the first Four on the feed.</div>}</div></section>
