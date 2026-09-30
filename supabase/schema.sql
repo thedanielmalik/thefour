@@ -115,7 +115,7 @@ begin
   perform pg_advisory_xact_lock(41004);
   select count(*) into member_count from public.four_members where squad_id=p_squad_id;
   if member_count < 4 then return query select false,null::text,null::integer; return; end if;
-  select reward_code into existing_code from public.reward_claims where squad_id=p_squad_id limit 1;
+  select rc.reward_code into existing_code from public.reward_claims rc where rc.squad_id=p_squad_id limit 1;
   if existing_code is not null then select count(*) into current_count from public.reward_claims; return query select true,existing_code,current_count; return; end if;
   select count(*) into current_count from public.reward_claims;
   if current_count >= 500 then return query select false,null::text,null::integer; return; end if;
