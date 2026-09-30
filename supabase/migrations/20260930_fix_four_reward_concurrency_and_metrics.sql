@@ -7,6 +7,7 @@ as $$
 declare
   member_count integer;
   existing_code text;
+  existing_created_at timestamptz;
   new_code text;
   current_count integer;
 begin
@@ -22,7 +23,7 @@ begin
     return;
   end if;
 
-  select rc.reward_code into existing_code
+  select rc.reward_code, rc.created_at into existing_code, existing_created_at
   from public.reward_claims rc
   where rc.squad_id = p_squad_id
   limit 1;
