@@ -4,7 +4,6 @@ const nextConfig = {
   output: 'export',
   trailingSlash: true,
   basePath: isGitHubPages ? '/thefour' : '',
-  assetPrefix: isGitHubPages ? '/thefour/' : undefined,
   images: { unoptimized: true }
 };
 
