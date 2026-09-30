@@ -164,19 +164,18 @@ export default function Home() {
   async function shareFour(){
     if(!artworkBlob)return;
     const url=inviteUrl(),text='I found my Four. ❤️ You are one of mine. Join my Four for THE FOUR.';
-    void trackEvent(code,'shared','native_share');
     try{
       if(navigator.share){
         const file=new File([artworkBlob],'my-four-'+code+'.jpg',{type:'image/jpeg'});
-        if(navigator.canShare?.({files:[file]})){await navigator.share({title:'My Four',text,url,files:[file]});return;}
-        await navigator.share({title:'My Four',text,url});return;
+        if(navigator.canShare?.({files:[file]})){await navigator.share({title:'My Four',text,url,files:[file]});void trackEvent(code,'shared','native_share');return;}
+        await navigator.share({title:'My Four',text,url});void trackEvent(code,'shared','native_share');return;
       }
     }catch{}
-    try{await navigator.clipboard.writeText(text+' '+url);}catch{}
+    try{await navigator.clipboard.writeText(text+' '+url);void trackEvent(code,'shared','clipboard');}catch{}
     alert('Your Four invitation has been copied.');
   }
 
-  function whatsapp(){const url=inviteUrl();void trackEvent(code,'shared','whatsapp');const text='I found my Four. ❤️ You are one of mine. Join my Four for THE FOUR: '+url;window.open('https://wa.me/?text='+encodeURIComponent(text),'_blank','noopener,noreferrer');}
+  function whatsapp(){const url=inviteUrl();const text='I found my Four. ❤️ You are one of mine. Join my Four for THE FOUR: '+url;window.open('https://wa.me/?text='+encodeURIComponent(text),'_blank','noopener,noreferrer');void trackEvent(code,'shared','whatsapp');}
 
   function download(){if(!artworkBlob)return;const a=document.createElement('a');a.href=URL.createObjectURL(artworkBlob);a.download='my-four-'+(code||'F4')+'.jpg';a.click();setTimeout(()=>URL.revokeObjectURL(a.href),2000);}
 
