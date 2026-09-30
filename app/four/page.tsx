@@ -24,6 +24,7 @@ export default function FourRoom(){
     setCode(value);
     if(!value){setError('Add a Four code to open the room.');setLoading(false);return;}
     let active=true;
+    let hasLoaded=false;
     const load=async()=>{
       try{
         const r=await fourApi('/fours?code='+encodeURIComponent(value));
@@ -33,7 +34,8 @@ export default function FourRoom(){
         setSquad(data.squad||null);
         setMembers(Array.isArray(data.members)?data.members:[]);
         setError('');
-      }catch(e){if(active && loading)setError(e instanceof Error?e.message:'Could not load Four room.');}
+        hasLoaded=true;
+      }catch(e){if(active && !hasLoaded)setError(e instanceof Error?e.message:'Could not load Four room.');}
       finally{if(active)setLoading(false);}
     };
     void load();
