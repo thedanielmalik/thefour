@@ -167,6 +167,16 @@ async function handleFours(request: Request) {
     );
     const occupied = current.ok ? await current.json() : [];
 
+    if (!requestedMember) {
+      const existingPhone = occupied.find(
+        (x: { member_number:number; phone?:string|null }) =>
+          String(x.phone || "").trim() === String(body.phone || "").trim()
+      );
+      if (existingPhone) {
+        memberNumber = Number(existingPhone.member_number);
+      }
+    }
+
     const requestedOccupied = occupied.find(
       (x: { member_number: number }) => x.member_number === memberNumber
     );
