@@ -167,6 +167,7 @@ async function handleFours(request: Request) {
     );
     const occupied = current.ok ? await current.json() : [];
 
+    let identifiedExisting = false;
     if (!requestedMember) {
       const existingPhone = occupied.find(
         (x: { member_number:number; phone?:string|null }) =>
@@ -174,6 +175,7 @@ async function handleFours(request: Request) {
       );
       if (existingPhone) {
         memberNumber = Number(existingPhone.member_number);
+        identifiedExisting = true;
       }
     }
 
@@ -181,7 +183,7 @@ async function handleFours(request: Request) {
       (x: { member_number: number }) => x.member_number === memberNumber
     );
 
-    if (requestedMember && requestedOccupied) {
+    if ((requestedMember || identifiedExisting) && requestedOccupied) {
       const samePerson =
         String(requestedOccupied.phone || "").trim() === String(body.phone || "").trim();
 
