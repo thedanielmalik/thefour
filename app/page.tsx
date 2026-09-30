@@ -145,7 +145,7 @@ export default function Home() {
     if(!chosenCinema||!chosenDate||!chosenShowtime){alert('Choose your cinema, date and showtime.');return;}
     setBusy(true);
     try{
-      const res=await fetch('/api/fours',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({code,name:regName,phone:regPhone,email:regEmail,consent,memberNumber:memberNumber || 1,preferredCinema:chosenCinema,preferredDate:chosenDate,preferredShowtime:chosenShowtime})});
+      const res=await fourApi('/fours',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({code,name:regName,phone:regPhone,email:regEmail,consent,memberNumber:memberNumber || 1,preferredCinema:chosenCinema,preferredDate:chosenDate,preferredShowtime:chosenShowtime})});
       if(!res.ok){const d=await res.json();if(!d.demo)throw new Error(d.error||'Could not save cinema choice.');}
       setApiNote('Cinema preference saved. The production version can now hand the group into the approved ticketing flow.');
     }catch(e){setApiNote(e instanceof Error?e.message:'Cinema selection captured for this prototype.');}
