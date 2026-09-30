@@ -110,14 +110,15 @@ as $$
 declare
   member_count integer;
   existing_code text;
+  existing_created_at timestamptz;
   new_code text;
   current_count integer;
 begin
   perform pg_advisory_xact_lock(41004);
   select count(*) into member_count from public.four_members where squad_id=p_squad_id;
   if member_count < 4 then return query select false,null::text,null::integer; return; end if;
-  select rc.reward_code into existing_code from public.reward_claims rc where rc.squad_id=p_squad_id limit 1;
-  if existing_code is not null then select count(*) into current_count from public.reward_claims; return query select true,existing_code,current_count; return; end if;
+  select rc.reward_code, rc.created_at into existing_code, existing_created_at from public.reward_claims rc where rc.squad_id=p_squad_id limit 1;
+  if existing_code is not null then select count(*) into current_count from public.reward_claims rc where rc.created_at <= existing_created_at; return query select true,existing_code,current_count; return; end if;
   select count(*) into current_count from public.reward_claims;
   if current_count >= 500 then return query select false,null::text,null::integer; return; end if;
   loop
