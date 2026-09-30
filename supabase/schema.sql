@@ -11,6 +11,7 @@ create table if not exists public.four_squads (
   preferred_cinema text,
   preferred_date date,
   preferred_showtime text,
+  artwork_url text,
   consent boolean not null default false,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
@@ -95,3 +96,8 @@ select
   (select count(*) from public.campaign_events where event_type = 'shared') as social_shares,
   (select count(*) from public.campaign_events where event_type = 'cinema_selected') as cinema_intent,
   (select count(*) from public.reward_claims where status in ('qualified','claimed')) as rewards_qualified;
+
+
+insert into storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
+values ('four-photos','four-photos',false,5242880,array['image/jpeg','image/png','image/webp'])
+on conflict (id) do update set public=excluded.public,file_size_limit=excluded.file_size_limit,allowed_mime_types=excluded.allowed_mime_types;
