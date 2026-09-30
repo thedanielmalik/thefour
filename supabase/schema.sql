@@ -405,3 +405,86 @@ end;
 $$;
 revoke all on function public.claim_four_reward_card(text,smallint[],text) from anon,authenticated;
 grant execute on function public.claim_four_reward_card(text,smallint[],text) to service_role;
+
+
+-- 2026-09-30: qualify the existing first-500 reward only after all four shares are confirmed.
+create or replace function public.qualify_four_reward(p_squad_id uuid)
+returns table(qualified boolean,reward_code text,rank integer)
+language plpgsql
+security definer
+set search_path=public
+as $$
+declare
+  member_count integer;
+  share_count integer;
+  existing_code text;
+  existing_created_at timestamptz;
+  new_code text;
+  current_count integer;
+begin
+  perform pg_advisory_xact_lock(41004);
+  select count(*) into member_count from public.four_members where squad_id=p_squad_id;
+  select count(*) into share_count from public.four_member_shares where squad_id=p_squad_id;
+  if member_count<4 or share_count<4 then
+    return query select false,null::text,null::integer;
+    return;
+  end if;
+  select rc.reward_code,rc.created_at into existing_code,existing_created_at
+  from public.reward_claims rc where rc.squad_id=p_squad_id limit 1;
+  if existing_code is not null then
+    select count(*) into current_count from public.reward_claims rc where rc.created_at<=existing_created_at;
+    return query select true,existing_code,current_count;
+    return;
+  end if;
+  select count(*) into current_count from public.reward_claims;
+  if current_count>=500 then
+    return query select false,null::text,null::integer;
+    return;
+  end if;
+  loop
+    new_code:='F4R-'||upper(substr(encode(extensions.gen_random_bytes(5),'hex'),1,10));
+    begin
+      insert into public.reward_claims(squad_id,reward_code,qualified_at,status)
+      values(p_squad_id,new_code,now(),'qualified');
+      exit;
+    exception when unique_violation then
+    end;
+  end loop;
+  return query select true,new_code,current_count+1;
+end;
+$$;
+revoke all on function public.qualify_four_reward(uuid) from anon,authenticated;
+grant execute on function public.qualify_four_reward(uuid) to service_role;
+
+-- 2026-09-30: disambiguate reward-card code lookup during venue claims.
+create or replace function public.claim_four_reward_card(p_card_code text,p_checked_members smallint[],p_claimed_by text)
+returns table(claimed boolean,squad_id uuid,card_code text,checked_count integer)
+language plpgsql security definer set search_path=public
+as $$
+declare
+  card public.reward_cards;
+  unique_count integer;
+  missing_count integer;
+begin
+  select rc.* into card
+  from public.reward_cards rc
+  where rc.card_code=upper(trim(p_card_code))
+  for update;
+  if card.id is null then raise exception using errcode='P0001',message='Reward card not found.'; end if;
+  if card.status<>'ready' then raise exception using errcode='P0001',message='Reward card is already claimed or expired.'; end if;
+  select count(distinct n) into unique_count from unnest(coalesce(p_checked_members,'{}'::smallint[])) n where n between 1 and 4;
+  if unique_count<>4 then raise exception using errcode='P0001',message='All four members must be checked in before the gift can be claimed.'; end if;
+  select count(*) into missing_count from generate_series(1,4) n
+  where not exists(select 1 from unnest(coalesce(p_checked_members,'{}'::smallint[])) x where x=n);
+  if missing_count<>0 then raise exception using errcode='P0001',message='All four members must be checked in before the gift can be claimed.'; end if;
+  insert into public.four_checkins(squad_id,member_id,member_number,checked_in_by)
+  select card.squad_id,fm.id,fm.member_number,p_claimed_by from public.four_members fm
+  where fm.squad_id=card.squad_id and fm.member_number between 1 and 4
+  on conflict(member_id) do update set checked_in_at=now(),checked_in_by=excluded.checked_in_by;
+  update public.reward_cards set status='claimed',claimed_at=now(),claimed_by=trim(coalesce(p_claimed_by,'Venue')) where id=card.id;
+  update public.four_squads set status='attended' where id=card.squad_id;
+  return query select true,card.squad_id,card.card_code,4;
+end;
+$$;
+revoke all on function public.claim_four_reward_card(text,smallint[],text) from anon,authenticated;
+grant execute on function public.claim_four_reward_card(text,smallint[],text) to service_role;
