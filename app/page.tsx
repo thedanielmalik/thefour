@@ -52,7 +52,9 @@ export default function Home() {
   const [regEmail,setRegEmail]=useState('');
   const [consent,setConsent]=useState(false);
   const [apiNote,setApiNote]=useState('');
-  const [inviteMembers,setInviteMembers]=useState<Array<{member_number:number;name:string|null}>>([]);
+  const [inviteMembers,setInviteMembers]=useState<Array<{member_number:number;name:string|null;photo_url?:string|null}>>([]);
+  const [invitePhoto,setInvitePhoto]=useState<File|null>(null);
+  const [invitePhotoPreview,setInvitePhotoPreview]=useState<string|null>(null);
   const [reward,setReward]=useState<{qualified:boolean;reward_code:string|null;rank:number|null}|null>(null);
   const fileInputs=useRef<Array<HTMLInputElement|null>>([]);
 
@@ -62,14 +64,14 @@ export default function Home() {
 
   useEffect(()=>{
     const invited=new URLSearchParams(window.location.search).get('four');
-    if(invited){setCode(invited);setIsInvite(true);setOpen(true);setStep(4);setApiNote('Loading the Four…'); fourApi('/fours?code='+encodeURIComponent(invited)).then(r=>r.json()).then(d=>{if(Array.isArray(d.members))setInviteMembers(d.members); setApiNote('You have been invited into an existing Four. Claim your place below.');}).catch(()=>setApiNote('Complete your details below to claim your place.'));}
+    if(invited){setCode(invited);setIsInvite(true);setOpen(true);setStep(4);setApiNote('Loading the Four…'); refreshSquad(invited).then(()=>setApiNote('You have been invited into an existing Four. Claim your place below.')).catch(()=>setApiNote('Complete your details below to claim your place.'));}
   },[]);
 
   function reset() {
     members.forEach(m=>m.preview&&URL.revokeObjectURL(m.preview));
     setMembers(freshMembers());setArtwork(null);setArtworkBlob(null);setCode('');setRegistered(false);
     setChosenCinema('');setChosenShowtime('');setChosenDate('');setRegName('');setRegPhone('');setRegEmail('');
-    setConsent(false);setApiNote('');setMemberNumber(null);setInviteMembers([]);setIsInvite(false);setStep(1);
+    setConsent(false);setApiNote('');setMemberNumber(null);setInviteMembers([]);setInvitePhoto(null);if(invitePhotoPreview)URL.revokeObjectURL(invitePhotoPreview);setInvitePhotoPreview(null);setIsInvite(false);setStep(1);
   }
 
   function pick(index:number,file:File|null){
@@ -85,7 +87,29 @@ export default function Home() {
 
   function setName(i:number,name:string){setMembers(prev=>prev.map((m,idx)=>idx===i?{...m,name}:m));}
 
-  async function trackEvent(codeValue:string|undefined,eventType:string,channel='web',metadata?:Record<string,unknown>){try{await fetch('/api/fours/events',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({code:codeValue,eventType,channel,metadata})})}catch{}}
+  async function fileToDataUrl(file:File){
+    return await new Promise<string>((resolve,reject)=>{
+      const src=URL.createObjectURL(file);const img=new Image();
+      img.onload=()=>{ URL.revokeObjectURL(src); const max=1400; const scale=Math.min(1,max/Math.max(img.width,img.height)); const canvas=document.createElement('canvas');canvas.width=Math.max(1,Math.round(img.width*scale));canvas.height=Math.max(1,Math.round(img.height*scale));const ctx=canvas.getContext('2d');if(!ctx){reject(new Error('Could not prepare photo.'));return;}ctx.drawImage(img,0,0,canvas.width,canvas.height);resolve(canvas.toDataURL('image/jpeg',.84)); };
+      img.onerror=()=>{URL.revokeObjectURL(src);reject(new Error('Could not read photo.'));}; img.src=src;
+    });
+  }
+
+  async function persistPhoto(codeValue:string,memberNo:number,file:File){
+    const dataUrl=await fileToDataUrl(file); const res=await fourApi('/photos',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({code:codeValue,memberNumber:memberNo,dataUrl})});
+    if(!res.ok){const d=await res.json();throw new Error(d.error||'Could not save photo.');}
+    return (await res.json()).photo_url as string;
+  }
+
+  async function persistArtwork(codeValue:string,dataUrl:string){
+    const res=await fourApi('/artwork',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({code:codeValue,dataUrl})});
+    if(!res.ok){const d=await res.json();throw new Error(d.error||'Could not save artwork.');}
+    return (await res.json()).artwork_url as string;
+  }
+
+  async function refreshSquad(codeValue:string){
+    try{ const res=await fourApi('/fours?code='+encodeURIComponent(codeValue)); const data=await res.json(); if(Array.isArray(data.members))setInviteMembers(data.members); return data; }catch{return null;}
+  }
 
   async function generateArtwork(){
     if(!complete){alert('Add all four photos before creating your Four.');return;}
@@ -112,8 +136,7 @@ export default function Home() {
       ctx.fillStyle='#173b4d';ctx.font='700 17px Arial,sans-serif';ctx.fillText('FIND YOUR FOUR  •  BRING YOUR FOUR  •  WATCH THE FOUR',540,1250);
       ctx.fillStyle='#665a54';ctx.font='15px Arial,sans-serif';ctx.fillText('FOUR CODE: '+fourCode,540,1290);
       const blob=await new Promise<Blob|null>(resolve=>canvas.toBlob(resolve,'image/jpeg',.94));
-      setArtwork(canvas.toDataURL('image/jpeg',.94));setArtworkBlob(blob);setStep(3);
-      void trackEvent(fourCode,'artwork_generated','web',{memberCount:4});
+      const artworkData=canvas.toDataURL('image/jpeg',.94);setArtwork(artworkData);setArtworkBlob(blob);setStep(3);
       void trackEvent(fourCode,'artwork_generated','web',{memberCount:4});
     }finally{setBusy(false);}
   }
@@ -147,7 +170,15 @@ export default function Home() {
       const data=await res.json();
       if(!res.ok&&!data.demo)throw new Error(data.error||'Registration failed.');
       setRegistered(true);
-      setApiNote(data.demo?'Prototype mode: registration remains local until the campaign database is connected.':'Your Four registration is saved.');
+      try{
+        if(finalCode && isInvite && invitePhoto && data.memberNumber) await persistPhoto(finalCode,Number(data.memberNumber),invitePhoto);
+        if(finalCode && !isInvite && members[0]?.file) await persistPhoto(finalCode,1,members[0].file);
+        if(finalCode && artwork) await persistArtwork(finalCode,artwork);
+        await refreshSquad(finalCode);
+        const rr=await fourApi('/reward',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({code:finalCode})});
+        if(rr.ok){const rd=await rr.json();setReward(rd.qualified!==undefined?rd:null);}
+      }catch(uploadError){setApiNote(uploadError instanceof Error?uploadError.message:'Registration saved, but one media item still needs to sync.');}
+      setApiNote(data.demo?'Prototype mode: registration remains local until the campaign database is connected.':'Your Four registration is saved and your Four Room is live.');
     }catch(e){
       setRegistered(true);
       setApiNote(e instanceof Error?e.message+' The prototype will keep your journey on this device.':'Prototype registration saved locally.');
@@ -191,7 +222,7 @@ export default function Home() {
       {step===1&&<div className="wizard-panel"><h2>Start with your Four.</h2><p>Choose four people you want beside you. You can build it together or invite them one by one.</p><div className="modal-actions"><span/><button className="btn btn-primary" onClick={()=>setStep(2)}>Add My Four →</button></div></div>}
       {step===2&&<div className="wizard-panel"><h2>Add four photos.</h2><p>Use a group photo or upload four individual photos. The prototype keeps the exact Four structure: 01, 02, 03, 04.</p><div className="photo-grid">{members.map((m,i)=><div className="photo-slot" key={i}><div className="slot-head"><span>0{i+1}</span><small>MEMBER 0{i+1}</small></div><button className="preview-btn" onClick={()=>fileInputs.current[i]?.click()}>{m.preview?<img src={m.preview} alt="" />:<span>ADD PHOTO</span>}</button><input ref={el=>{fileInputs.current[i]=el}} type="file" accept="image/*" hidden onChange={e=>pick(i,e.target.files?.[0]||null)}/><input className="name-input" value={m.name} placeholder="Name (optional)" onChange={e=>setName(i,e.target.value)}/></div>)}</div><div className="modal-actions"><button className="btn btn-ghost" onClick={()=>setStep(1)}>Back</button><button className="btn btn-primary" disabled={busy} onClick={generateArtwork}>{busy?'Creating…':'Create My Four'}</button></div></div>}
       {step===3&&<div className="wizard-panel artwork-panel"><h2>YOUR FOUR IS READY.</h2>{artwork&&<img className="artwork" src={artwork} alt="Personalised Four campaign artwork"/>}<div className="code">FOUR CODE <strong>{code}</strong></div><p>Share the visual and invitation link with your Four. On supported phones, the native share sheet can share the image directly.</p><div className="share-actions"><button className="btn btn-primary" onClick={shareFour}>Share My Four</button><button className="btn btn-ghost" onClick={whatsapp}>WhatsApp</button><button className="btn btn-ghost" onClick={download}>Download</button></div><div className="modal-actions"><button className="btn btn-ghost" onClick={()=>setStep(2)}>Edit</button><button className="btn btn-primary" onClick={()=>setStep(4)}>Continue to Watch →</button></div></div>}
-      {step===4&&<div className="wizard-panel"><h2>{isInvite?'You’ve been invited into this Four.':'Bring your Four to the cinema.'}</h2>{!registered?<><p>{isInvite?'Your Four has exactly four places. Claim the next available place and join the group.':'Register the Four captain first. In production, this becomes a consent-based campaign lead.'}</p>{isInvite && <div className="invite-members">{[1,2,3,4].map(n=>{const m=inviteMembers.find(x=>x.member_number===n);return <div className={m?'slot claimed':'slot'} key={n}><span>0{n}</span><b>{m?.name||'OPEN'}</b></div>})}</div>}<div className="form-row"><input value={regName} onChange={e=>setRegName(e.target.value)} placeholder="Your name"/><input value={regPhone} onChange={e=>setRegPhone(e.target.value)} placeholder="+234 phone"/><input value={regEmail} onChange={e=>setRegEmail(e.target.value)} placeholder="Email (optional)"/></div><label className="consent"><input type="checkbox" checked={consent} onChange={e=>setConsent(e.target.checked)}/> I agree to receive campaign reminders and information about THE FOUR.</label><button className="btn btn-primary" disabled={busy} onClick={register}>{busy?'Saving…':'Register My Four'}</button>{apiNote&&<div className="inline-note">{apiNote}</div>}</>:<><div className="success"><strong>{isInvite?'You’ve joined Four '+code+'.':'Four '+code+' is registered.'}</strong>{memberNumber&&<><br/>You are member {String(memberNumber).padStart(2,'0')}.</>}<br/>{apiNote}</div>{reward?.qualified && <div className="reward-banner"><div className="eyebrow">FOUR EXPERIENCE</div><strong>Congratulations — your Four qualified.</strong><span>Reward code: {reward.reward_code}</span>{reward.rank&&<span>Place {reward.rank} of the first 500 qualifying Fours.</span>}</div>}<div className="cinema-card"><div className="eyebrow">CHOOSE YOUR CINEMA • DEMO INVENTORY</div><select value={chosenCinema} onChange={e=>{setChosenCinema(e.target.value);setChosenShowtime('')}}><option value="">Select a cinema</option>{CINEMAS.map(c=><option key={c.name} value={c.name}>{c.name}</option>)}</select><input type="date" value={chosenDate} onChange={e=>setChosenDate(e.target.value)}/><select value={chosenShowtime} onChange={e=>setChosenShowtime(e.target.value)} disabled={!cinema}><option value="">Select a showtime</option>{cinema?.showtimes.map(t=><option key={t}>{t}</option>)}</select><button className="btn btn-primary" disabled={busy} onClick={chooseCinema}>{busy?'Saving…':'Save My Cinema Choice'}</button>{chosenCinema&&chosenDate&&chosenShowtime&&<div className="booking-row"><div><small>YOUR FOUR</small><strong>{chosenCinema}</strong><span>{chosenDate} • {chosenShowtime}</span></div>{ticketingUrl?<a className="btn btn-ghost" onClick={()=>void trackEvent(code,'ticket_clicked','web',{cinema:chosenCinema,showtime:chosenShowtime})} href={ticketingUrl} target="_blank" rel="noreferrer">Continue to Tickets →</a>:<button className="btn btn-ghost" onClick={()=>{void trackEvent(code,'ticket_clicked','web',{cinema:chosenCinema,showtime:chosenShowtime});alert('Ticketing partner link will be connected here in production.')}}>Continue to Tickets →</button>}</div>}</div></>}</div>}
+      {step===4&&<div className="wizard-panel"><h2>{isInvite?'You’ve been invited into this Four.':'Bring your Four to the cinema.'}</h2>{!registered?<><p>{isInvite?'Your Four has exactly four places. Claim the next available place and join the group.':'Register the Four captain first. In production, this becomes a consent-based campaign lead.'}</p>{isInvite && <div className="invite-members">{[1,2,3,4].map(n=>{const m=inviteMembers.find(x=>x.member_number===n);return <div className={m?'slot claimed':'slot'} key={n}><span>0{n}</span>{m?.photo_url?<img src={m.photo_url} alt="" />:<div className="room-avatar">{m?'TEXT':'OPEN'}</div>}<b>{m?.name||'OPEN'}</b></div>})}</div>}{isInvite && <div className="invite-photo"><div className="eyebrow">YOUR FOUR PHOTO</div><button className="preview-btn" onClick={()=>document.getElementById('invite-photo-input')?.click()}>{invitePhotoPreview?<img src={invitePhotoPreview} alt="" />:<span>ADD YOUR PHOTO</span>}</button><input id="invite-photo-input" type="file" accept="image/*" hidden onChange={e=>{const file=e.target.files?.[0]||null;if(!file)return;if(file.size>8*1024*1024){alert('Please use an image smaller than 8MB.');return;}setInvitePhoto(file);if(invitePhotoPreview)URL.revokeObjectURL(invitePhotoPreview);setInvitePhotoPreview(URL.createObjectURL(file));}}/><p className="inline-note">Your photo is saved to your Four after you claim your place.</p></div>}<div className="form-row"><input value={regName} onChange={e=>setRegName(e.target.value)} placeholder="Your name"/><input value={regPhone} onChange={e=>setRegPhone(e.target.value)} placeholder="+234 phone"/><input value={regEmail} onChange={e=>setRegEmail(e.target.value)} placeholder="Email (optional)"/></div><label className="consent"><input type="checkbox" checked={consent} onChange={e=>setConsent(e.target.checked)}/> I agree to receive campaign reminders and information about THE FOUR.</label><button className="btn btn-primary" disabled={busy} onClick={register}>{busy?'Saving…':'Register My Four'}</button>{apiNote&&<div className="inline-note">{apiNote}</div>}</>:<><div className="success"><strong>{isInvite?'You’ve joined Four '+code+'.':'Four '+code+' is registered.'}</strong>{memberNumber&&<><br/>You are member {String(memberNumber).padStart(2,'0')}.</>}<br/>{apiNote}</div>{reward?.qualified && <div className="reward-banner"><div className="eyebrow">FOUR EXPERIENCE</div><strong>Congratulations — your Four qualified.</strong><span>Reward code: {reward.reward_code}</span>{reward.rank&&<span>Place {reward.rank} of the first 500 qualifying Fours.</span>}</div>}<div className="cinema-card"><div className="eyebrow">CHOOSE YOUR CINEMA • DEMO INVENTORY</div><select value={chosenCinema} onChange={e=>{setChosenCinema(e.target.value);setChosenShowtime('')}}><option value="">Select a cinema</option>{CINEMAS.map(c=><option key={c.name} value={c.name}>{c.name}</option>)}</select><input type="date" value={chosenDate} onChange={e=>setChosenDate(e.target.value)}/><select value={chosenShowtime} onChange={e=>setChosenShowtime(e.target.value)} disabled={!cinema}><option value="">Select a showtime</option>{cinema?.showtimes.map(t=><option key={t}>{t}</option>)}</select><button className="btn btn-primary" disabled={busy} onClick={chooseCinema}>{busy?'Saving…':'Save My Cinema Choice'}</button>{chosenCinema&&chosenDate&&chosenShowtime&&<div className="booking-row"><div><small>YOUR FOUR</small><strong>{chosenCinema}</strong><span>{chosenDate} • {chosenShowtime}</span></div>{ticketingUrl?<a className="btn btn-ghost" onClick={()=>void trackEvent(code,'ticket_clicked','web',{cinema:chosenCinema,showtime:chosenShowtime})} href={ticketingUrl} target="_blank" rel="noreferrer">Continue to Tickets →</a>:<button className="btn btn-ghost" onClick={()=>{void trackEvent(code,'ticket_clicked','web',{cinema:chosenCinema,showtime:chosenShowtime});alert('Ticketing partner link will be connected here in production.')}}>Continue to Tickets →</button>}</div>}</div></>}</div>}
     </div></div>}
   </main>
 }
