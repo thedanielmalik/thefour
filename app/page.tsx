@@ -163,6 +163,34 @@ function textFit(ctx: CanvasRenderingContext2D, text:string, maxWidth:number, st
   return size;
 }
 
+const OFFICIAL_FLYER_URL = `${process.env.NEXT_PUBLIC_BASE_PATH || ''}/the-four-official-flyer-wm.jpg`;
+
+function loadImage(src:string){
+  return new Promise<HTMLImageElement>((resolve,reject)=>{
+    const img=new Image();
+    img.onload=()=>resolve(img);
+    img.onerror=()=>reject(new Error('Could not load image.'));
+    img.src=src;
+  });
+}
+
+function drawOfficialFlyerWatermark(ctx:CanvasRenderingContext2D, img:HTMLImageElement, w:number, h:number, template:TemplateId){
+  const maxW=w*.92, maxH=h*.90;
+  const scale=Math.min(maxW/img.width,maxH/img.height);
+  const dw=img.width*scale, dh=img.height*scale;
+  const x=(w-dw)/2 + (template==='bold' ? 22 : 0);
+  const y=(h-dh)/2 + (template==='sunset' ? 18 : -6);
+  const alpha=template==='editorial' ? .12 : template==='magazine' ? .105 : .085;
+  ctx.save();
+  ctx.globalAlpha=alpha;
+  ctx.globalCompositeOperation='source-over';
+  ctx.filter='saturate(.72) contrast(.92)';
+  ctx.translate(x+dw/2,y+dh/2);
+  ctx.rotate(template==='bold' ? .018 : template==='sunset' ? -.012 : .008);
+  ctx.drawImage(img,-dw/2,-dh/2,dw,dh);
+  ctx.restore();
+}
+
 async function makeFourFlyer(imgs:HTMLImageElement[], members:Member[], codeValue:string, template:TemplateId) {
   const canvas=document.createElement('canvas');
   canvas.width=FLYER_WIDTH;canvas.height=FLYER_HEIGHT;
@@ -170,10 +198,15 @@ async function makeFourFlyer(imgs:HTMLImageElement[], members:Member[], codeValu
   if(!ctx)throw new Error('Could not create flyer.');
   const navy='#0D1B3D', orange='#F26D21', cream='#FFF6E9', gold='#DAAF37', wine='#6f1d2b', ink='#171616', white='#fff';
 
+  let officialFlyer:HTMLImageElement|null=null;
+  try{ officialFlyer=await loadImage(OFFICIAL_FLYER_URL); }catch{}
+  const addOfficialFlyer=()=>{ if(officialFlyer) drawOfficialFlyerWatermark(ctx,officialFlyer,FLYER_WIDTH,FLYER_HEIGHT,template); };
+
   ctx.textBaseline='alphabetic';
 
   if(template==='editorial'){
     drawFlyerBackground(ctx,'editorial',FLYER_WIDTH,FLYER_HEIGHT,navy,orange,cream,gold,wine);
+    addOfficialFlyer();
     ctx.fillStyle=navy;ctx.textAlign='center';ctx.font='700 18px Arial,sans-serif';ctx.fillText('A FUNKE AKINDELE FILM',540,48);
     ctx.fillStyle=orange;ctx.font='900 116px Georgia,serif';ctx.fillText('THE',540,152);
     ctx.fillStyle=navy;ctx.font='500 150px Georgia,serif';ctx.fillText('FOUR',540,268);
@@ -195,6 +228,7 @@ async function makeFourFlyer(imgs:HTMLImageElement[], members:Member[], codeValu
 
   if(template==='sunset'){
     drawFlyerBackground(ctx,'sunset',FLYER_WIDTH,FLYER_HEIGHT,navy,orange,cream,gold,wine);
+    addOfficialFlyer();
     ctx.fillStyle='rgba(255,246,233,.10)';ctx.textAlign='right';ctx.font='900 480px Georgia,serif';ctx.fillText('4',1060,530);
     ctx.fillStyle=cream;ctx.textAlign='center';ctx.font='700 17px Arial,sans-serif';ctx.fillText('A FUNKE AKINDELE FILM',540,50);
     ctx.font='900 118px Georgia,serif';ctx.fillText('THE FOUR',540,152);
@@ -218,6 +252,7 @@ async function makeFourFlyer(imgs:HTMLImageElement[], members:Member[], codeValu
 
   if(template==='magazine'){
     drawFlyerBackground(ctx,'magazine',FLYER_WIDTH,FLYER_HEIGHT,navy,orange,cream,gold,wine);
+    addOfficialFlyer();
     ctx.fillStyle=navy;ctx.textAlign='left';ctx.font='800 17px Arial,sans-serif';ctx.fillText('THE FOUR / NO. 01 / '+RELEASE_YEAR,42,42);
     ctx.textAlign='right';ctx.fillText('A FUNKE AKINDELE FILM',1038,42);
     ctx.textAlign='center';ctx.fillStyle=navy;
@@ -241,6 +276,7 @@ async function makeFourFlyer(imgs:HTMLImageElement[], members:Member[], codeValu
 
   if(template==='bold'){
     drawFlyerBackground(ctx,'bold',FLYER_WIDTH,FLYER_HEIGHT,navy,orange,cream,gold,wine);
+    addOfficialFlyer();
     ctx.fillStyle=cream;ctx.textAlign='left';ctx.font='800 18px Arial,sans-serif';ctx.fillText('A FUNKE AKINDELE FILM',44,50);
     ctx.fillStyle=gold;ctx.textAlign='right';ctx.fillText(RELEASE_YEAR,1036,50);
     ctx.textAlign='center';ctx.fillStyle=cream;ctx.font='900 112px Georgia,serif';ctx.fillText('THE FOUR',540,160);
