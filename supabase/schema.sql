@@ -24,6 +24,7 @@ create table if not exists public.four_members (
   name text,
   phone text,
   email text,
+  consent boolean not null default false,
   photo_url text,
   joined_at timestamptz,
   created_at timestamptz not null default now(),
