@@ -1,0 +1,10 @@
+{
+  "name":"The Four — Find Your Four",
+  "short_name":"Find Your Four",
+  "description":"Find your Four. Create your Four. Share your Four. Watch THE FOUR.",
+  "start_url":"/",
+  "display":"standalone",
+  "background_color":"#f4efe5",
+  "theme_color":"#6f1d2b",
+  "orientation":"portrait-primary"
+}
