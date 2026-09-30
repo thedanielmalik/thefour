@@ -623,6 +623,25 @@ async function handleReward(request: Request) {
   return json({ ...result, code });
 }
 
+async function handleAdminEvents(request: Request) {
+  if (!adminTokenValid(request)) return json({ error: "Unauthorized." }, 401);
+  const url = new URL(request.url);
+  const limit = Math.min(Math.max(Number(url.searchParams.get("limit") || 50), 1), 100);
+  const r = await rest("/campaign_events?select=event_type,channel,metadata,created_at,squad_id&order=created_at.desc&limit=" + limit);
+  if (!r.ok) return json({ error: "Could not load campaign events." }, 502);
+  const rows = await r.json();
+  const ids = Array.from(new Set(rows.map((row: { squad_id?: string|null }) => row.squad_id).filter(Boolean))) as string[];
+  const codeMap = new Map<string,string>();
+  if (ids.length) {
+    const squadResponse = await rest("/four_squads?select=id,code&id=in.(" + ids.join(",") + ")");
+    if (squadResponse.ok) {
+      const squads = await squadResponse.json();
+      for (const squad of squads) codeMap.set(String(squad.id), String(squad.code || ""));
+    }
+  }
+  return json({events: rows.map((row: {event_type?:string;channel?:string|null;metadata?:Record<string,unknown>|null;created_at?:string;squad_id?:string|null})=>({event_type:String(row.event_type||""),channel:row.channel||null,metadata:row.metadata||null,created_at:row.created_at||"",squad_id:row.squad_id||null,code:row.squad_id?codeMap.get(String(row.squad_id))||null:null}))});
+}
+
 async function handleMetrics(request: Request) {
   const expected = Deno.env.get("ADMIN_DASHBOARD_TOKEN");
   if (!expected || request.headers.get("x-admin-token") !== expected) {
@@ -645,6 +664,7 @@ Deno.serve(async request => {
     const path = new URL(request.url).pathname;
 
     if (path.endsWith("/metrics") && request.method === "GET") return handleMetrics(request);
+    if (path.endsWith("/admin/events") && request.method === "GET") return handleAdminEvents(request);
     if (path.endsWith("/activity") && request.method === "GET") return handlePublicActivity(request);
     if (path.endsWith("/card") && request.method === "GET") return handleCreatorCard(request);
     if (path.endsWith("/admin/four") && request.method === "GET") return handleAdminFour(request);

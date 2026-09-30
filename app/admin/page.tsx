@@ -1,12 +1,13 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { fourApi } from '../../lib/four-api';
 
 type AdminMember = {
   member_number:number; name:string|null; phone:string|null; email:string|null; joined_at:string|null;
   public_activity_opt_in:boolean; shared:boolean; share_channel:string|null; share_confirmed_at:string|null; checked_in:boolean;
 };
+type AdminEvent = {event_type:string;channel:string|null;metadata:Record<string,unknown>|null;created_at:string;squad_id:string|null;code:string|null};
 type AdminFour = {
   squad:{id:string;code:string;status:string;created_at:string;preferred_cinema?:string|null;preferred_date?:string|null;preferred_showtime?:string|null};
   members:AdminMember[];
@@ -35,7 +36,19 @@ export default function AdminPage(){
   const [loading,setLoading]=useState(false);
   const [fourLoading,setFourLoading]=useState(false);
   const [claiming,setClaiming]=useState(false);
+  const [events,setEvents]=useState<AdminEvent[]>([]);
+  const [eventsLoading,setEventsLoading]=useState(false);
   const [error,setError]=useState('');
+
+  async function loadEvents(currentToken=token){
+    if(!currentToken.trim())return;
+    setEventsLoading(true);
+    try{
+      const res=await fourApi('/admin/events?limit=50',{headers:{'x-admin-token':currentToken.trim()}});
+      const data=await res.json();
+      if(res.ok && Array.isArray(data.events)) setEvents(data.events);
+    }catch{}finally{setEventsLoading(false);}
+  }
 
   async function load(){
     if(!token.trim()){setError('Enter the dashboard token.');return;}
@@ -45,9 +58,16 @@ export default function AdminPage(){
       const data=await res.json();
       if(!res.ok)throw new Error(data.error||'Could not load dashboard.');
       setMetrics(data);
+      void loadEvents(token);
     }catch(e){setError(e instanceof Error?e.message:'Could not load dashboard.');}
     finally{setLoading(false);}
   }
+
+  useEffect(()=>{
+    if(!metrics || !token.trim())return;
+    const timer=window.setInterval(()=>{void load();},15000);
+    return()=>window.clearInterval(timer);
+  },[metrics,token]);
 
   async function lookupFour(){
     if(!token.trim()||!fourCode.trim()){setError('Enter the dashboard token and Four code.');return;}
@@ -84,6 +104,7 @@ export default function AdminPage(){
     <div className='admin-login'><input type='password' placeholder='Dashboard token' value={token} onChange={e=>setToken(e.target.value)}/><button onClick={load}>{loading?'Loading…':'Open Dashboard'}</button></div>
     {error&&<div className='admin-error'>{error}</div>}
     {metrics&&<div className='admin-grid'>{labels.map(([key,label])=><div className='admin-card' key={key}><strong>{metrics[key]??0}</strong><span>{label}</span></div>)}</div>}
+    {metrics&&<section className='admin-events'><div className='admin-events-head'><div><div className='eyebrow'>LIVE EVENT STREAM</div><h2>What is happening right now.</h2><p>Registrations, share starts, confirmed shares, cinema selections and ticket clicks appear here with the channel and time.</p></div><button onClick={()=>void loadEvents()} disabled={eventsLoading}>{eventsLoading?'Refreshing…':'Refresh events'}</button></div><div className='admin-event-table'><div className='admin-event-header'><span>TIME</span><span>FOUR</span><span>EVENT</span><span>CHANNEL</span><span>DETAILS</span></div>{events.length?events.map((e,i)=><div className='admin-event-row' key={e.created_at+'-'+i}><span>{new Date(e.created_at).toLocaleString()}</span><strong>{e.code||'—'}</strong><b>{e.event_type.replaceAll('_',' ').toUpperCase()}</b><span>{e.channel||'—'}</span><small>{e.metadata?JSON.stringify(e.metadata):'—'}</small></div>):<div className='admin-event-empty'>No campaign events captured yet.</div>}</div></section>
 
     <section className='admin-four-search'>
       <div className='eyebrow'>FOUR VERIFICATION</div>
