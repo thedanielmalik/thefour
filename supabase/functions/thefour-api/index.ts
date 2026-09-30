@@ -108,13 +108,32 @@ async function handleFours(request: Request) {
         encodeURIComponent(squad.id) +
         "&select=member_number,name,phone,joined_at,photo_url&order=member_number.asc"
     );
+    const shareResponse = await rest(
+      "/four_member_shares?squad_id=eq." +
+        encodeURIComponent(squad.id) +
+        "&select=member_id,member_number,channel,confirmed_at"
+    );
 
     const members = membersResponse.ok ? await membersResponse.json() : [];
+    const shares = shareResponse.ok ? await shareResponse.json() : [];
+    const shareMap = new Map<string, { channel:string; confirmed_at:string }>();
+    for (const share of shares) {
+      shareMap.set(String(share.member_id), {
+        channel: String(share.channel || ""),
+        confirmed_at: String(share.confirmed_at || "")
+      });
+    }
+
     for (const member of members) {
+      const share = shareMap.get(String(member.id));
+      member.shared = Boolean(share);
+      member.share_channel = share?.channel || null;
+      member.share_confirmed_at = share?.confirmed_at || null;
       if (member.photo_url) {
         member.photo_url = await signObject("four-photos", member.photo_url);
       }
       delete member.phone;
+      delete member.id;
     }
 
     if (squad.artwork_url) {
@@ -155,7 +174,6 @@ async function handleFours(request: Request) {
     });
 
     if (!create.ok) {
-      // A simultaneous creator may have won the unique code. Re-read before failing.
       squad = await findSquad(code);
       if (!squad) return json({ error: "Could not create the Four." }, 502);
       squadId = squad.id;
@@ -176,7 +194,8 @@ async function handleFours(request: Request) {
       p_name: body.name.trim(),
       p_phone: body.phone.trim(),
       p_email: body.email?.trim() || null,
-      p_consent: true
+      p_consent: true,
+      p_public_activity_opt_in: Boolean(body.publicActivityOptIn)
     })
   });
 
@@ -189,7 +208,8 @@ async function handleFours(request: Request) {
 
   const memberRows = await memberRpc.json();
   const memberNumber = Number(memberRows[0]?.member_number);
-  if (![1,2,3,4].includes(memberNumber)) return json({ error: "Could not determine Four member." }, 502);
+  const memberId = String(memberRows[0]?.member_id || "");
+  if (![1,2,3,4].includes(memberNumber) || !memberId) return json({ error: "Could not determine Four member." }, 502);
 
   if (body.preferredCinema) {
     const update = await rest(
@@ -208,21 +228,18 @@ async function handleFours(request: Request) {
 
   await logEvent(
     code,
-    body.preferredCinema
-      ? "cinema_selected"
-      : createdSquad
-      ? "created"
-      : "member_joined",
+    body.preferredCinema ? "cinema_selected" : createdSquad ? "created" : "member_joined",
     "web",
     {
       consent: true,
       memberNumber,
       cinema: body.preferredCinema || null,
-      showtime: body.preferredShowtime || null
+      showtime: body.preferredShowtime || null,
+      publicActivityOptIn: Boolean(body.publicActivityOptIn)
     }
   );
 
-  return json({ ok: true, code, squadId, memberNumber });
+  return json({ ok: true, code, squadId, memberNumber, memberId });
 }
 
 async function verifyMemberPhone(squadId: string, memberNumber: number, phone: string) {
@@ -239,6 +256,219 @@ async function verifyMemberPhone(squadId: string, memberNumber: number, phone: s
     rows[0]?.id &&
       String(rows[0].phone || "").trim() === String(phone || "").trim()
   );
+}
+
+async function handleShareConfirmation(request: Request) {
+  const body = await request.json();
+  if (!body.code || !body.memberNumber || !body.phone || !body.channel) {
+    return json({ error: "Four code, member number, phone and share channel are required." }, 400);
+  }
+
+  const code = String(body.code).trim().toUpperCase();
+  const memberNumber = Number(body.memberNumber);
+  const channel = String(body.channel).trim().toLowerCase();
+  const allowed = new Set(["native_share","whatsapp","instagram","facebook","tiktok","other_self_confirmed"]);
+  if (![1,2,3,4].includes(memberNumber)) return json({ error: "Invalid Four member." }, 400);
+  if (!allowed.has(channel)) return json({ error: "Unsupported share channel." }, 400);
+
+  const squad = await findSquad(code);
+  if (!squad) return json({ error: "Four not found." }, 404);
+  const memberResponse = await rest(
+    "/four_members?squad_id=eq." + encodeURIComponent(squad.id) +
+    "&member_number=eq." + memberNumber +
+    "&select=id,phone,name"
+  );
+  if (!memberResponse.ok) return json({ error: "Could not verify Four member." }, 502);
+  const members = await memberResponse.json();
+  const member = members[0];
+  if (!member || String(member.phone || "").trim() !== String(body.phone || "").trim()) {
+    return json({ error: "That Four member could not be verified." }, 403);
+  }
+
+  const now = new Date().toISOString();
+  const upsert = await rest("/four_member_shares?on_conflict=member_id", {
+    method: "POST",
+    headers: { Prefer: "resolution=merge-duplicates,return=representation" },
+    body: JSON.stringify({
+      squad_id: squad.id,
+      member_id: member.id,
+      member_number: memberNumber,
+      channel,
+      confirmed_at: now
+    })
+  });
+  if (!upsert.ok) return json({ error: "Could not record the share confirmation." }, 502);
+
+  await logEvent(code, "shared", "web", {
+    memberNumber,
+    channel,
+    shareConfirmed: true
+  });
+
+  const rpc = await rest("/rpc/issue_four_reward_card", {
+    method: "POST",
+    body: JSON.stringify({ p_squad_id: squad.id })
+  });
+  let cardIssued = false;
+  let cardCode: string | null = null;
+  if (rpc.ok) {
+    const rows = await rpc.json();
+    cardIssued = Boolean(rows[0]?.issued);
+    cardCode = rows[0]?.card_code || null;
+  }
+
+  return json({
+    ok: true,
+    memberNumber,
+    shareConfirmed: true,
+    confirmedAt: now,
+    cardIssued,
+    rewardCard: memberNumber === 1 && cardIssued && cardCode ? { card_code: cardCode, issued_to: member.name } : null
+  });
+}
+
+async function handlePublicActivity(request: Request) {
+  const url = new URL(request.url);
+  const limit = Math.min(Math.max(Number(url.searchParams.get("limit") || 12), 1), 30);
+  const r = await rest(
+    "/four_public_activity?select=name,member_number,joined_at,status,member_count&order=joined_at.desc&limit=" + limit
+  );
+  if (!r.ok) return json({ items: [] });
+  const rows = await r.json();
+  const items = rows.map((row: {
+    name?: string|null;
+    member_number?: number;
+    joined_at?: string|null;
+    status?: string|null;
+    member_count?: number;
+  }) => {
+    const raw = String(row.name || "Someone").trim();
+    const parts = raw.split(/\s+/).filter(Boolean);
+    const displayName = parts.length > 1 ? parts[0] + " " + parts[1].charAt(0) + "." : (parts[0] || "Someone");
+    return {
+      display_name: displayName,
+      member_number: Number(row.member_number || 1),
+      joined_at: row.joined_at,
+      member_count: Number(row.member_count || 1),
+      status: row.status || "registered"
+    };
+  });
+  return json({ items });
+}
+
+async function handleCreatorCard(request: Request) {
+  const url = new URL(request.url);
+  const code = String(url.searchParams.get("code") || "").trim().toUpperCase();
+  const phone = String(url.searchParams.get("phone") || "").trim();
+  if (!code || !phone) return json({ error: "Four code and creator phone are required." }, 400);
+  const squad = await findSquad(code);
+  if (!squad) return json({ error: "Four not found." }, 404);
+
+  const creator = await rest(
+    "/four_members?squad_id=eq." + encodeURIComponent(squad.id) +
+    "&member_number=eq.1&select=id,name,phone"
+  );
+  if (!creator.ok) return json({ error: "Could not verify creator." }, 502);
+  const creators = await creator.json();
+  if (!creators[0] || String(creators[0].phone || "").trim() !== phone) {
+    return json({ error: "Creator verification failed." }, 403);
+  }
+
+  const cardResponse = await rest(
+    "/reward_cards?squad_id=eq." + encodeURIComponent(squad.id) +
+    "&select=card_code,status,issued_at,claimed_at"
+  );
+  if (!cardResponse.ok) return json({ card: null });
+  const cards = await cardResponse.json();
+  if (!cards[0]) return json({ card: null, ready: false });
+
+  const membersResponse = await rest(
+    "/four_members?squad_id=eq." + encodeURIComponent(squad.id) +
+    "&select=member_number,name&order=member_number.asc"
+  );
+  const members = membersResponse.ok ? await membersResponse.json() : [];
+  return json({
+    ready: true,
+    card: {
+      card_code: cards[0].card_code,
+      status: cards[0].status,
+      issued_at: cards[0].issued_at,
+      claimed_at: cards[0].claimed_at,
+      creator_name: creators[0].name,
+      members
+    }
+  });
+}
+
+function adminTokenValid(request: Request) {
+  const expected = Deno.env.get("ADMIN_DASHBOARD_TOKEN");
+  return Boolean(expected && request.headers.get("x-admin-token") === expected);
+}
+
+async function handleAdminFour(request: Request) {
+  if (!adminTokenValid(request)) return json({ error: "Unauthorized." }, 401);
+  const code = String(new URL(request.url).searchParams.get("code") || "").trim().toUpperCase();
+  if (!code) return json({ error: "Four code is required." }, 400);
+  const squad = await findSquad(code);
+  if (!squad) return json({ error: "Four not found." }, 404);
+
+  const membersResponse = await rest(
+    "/four_members?squad_id=eq." + encodeURIComponent(squad.id) +
+    "&select=member_number,name,phone,email,joined_at,public_activity_opt_in&order=member_number.asc"
+  );
+  const shareResponse = await rest(
+    "/four_member_shares?squad_id=eq." + encodeURIComponent(squad.id) +
+    "&select=member_id,member_number,channel,confirmed_at"
+  );
+  const checkinResponse = await rest(
+    "/four_checkins?squad_id=eq." + encodeURIComponent(squad.id) +
+    "&select=member_number,checked_in_at,checked_in_by&order=member_number.asc"
+  );
+  const cardResponse = await rest(
+    "/reward_cards?squad_id=eq." + encodeURIComponent(squad.id) +
+    "&select=card_code,status,issued_at,claimed_at,claimed_by"
+  );
+
+  const members = membersResponse.ok ? await membersResponse.json() : [];
+  const shares = shareResponse.ok ? await shareResponse.json() : [];
+  const checkins = checkinResponse.ok ? await checkinResponse.json() : [];
+  const cardRows = cardResponse.ok ? await cardResponse.json() : [];
+  const shareMap = new Map<number,{channel:string;confirmed_at:string}>();
+  for (const s of shares) shareMap.set(Number(s.member_number),{channel:String(s.channel||""),confirmed_at:String(s.confirmed_at||"")});
+  return json({
+    squad: {
+      id: squad.id, code: squad.code, status: squad.status, created_at: squad.created_at,
+      preferred_cinema: squad.preferred_cinema, preferred_date: squad.preferred_date, preferred_showtime: squad.preferred_showtime
+    },
+    members: members.map((m: Record<string,unknown>) => ({
+      ...m,
+      shared: shareMap.has(Number(m.member_number)),
+      share_channel: shareMap.get(Number(m.member_number))?.channel || null,
+      share_confirmed_at: shareMap.get(Number(m.member_number))?.confirmed_at || null,
+      checked_in: checkins.some((x:{member_number:number})=>Number(x.member_number)===Number(m.member_number))
+    })),
+    reward_card: cardRows[0] || null
+  });
+}
+
+async function handleClaimCard(request: Request) {
+  if (!adminTokenValid(request)) return json({ error: "Unauthorized." }, 401);
+  const body = await request.json();
+  if (!body.cardCode || !Array.isArray(body.checkedMembers)) return json({ error: "Card code and checked members are required." }, 400);
+  const r = await rest("/rpc/claim_four_reward_card", {
+    method: "POST",
+    body: JSON.stringify({
+      p_card_code: String(body.cardCode).trim().toUpperCase(),
+      p_checked_members: body.checkedMembers.map((n:unknown)=>Number(n)),
+      p_claimed_by: String(body.claimedBy || "Venue").trim()
+    })
+  });
+  if (!r.ok) {
+    const detail = await r.text().catch(() => "");
+    return json({ error: detail || "Could not claim reward card." }, 409);
+  }
+  const rows = await r.json();
+  return json(rows[0] || { claimed: false });
 }
 
 async function handlePhoto(request: Request) {
@@ -415,6 +645,11 @@ Deno.serve(async request => {
     const path = new URL(request.url).pathname;
 
     if (path.endsWith("/metrics") && request.method === "GET") return handleMetrics(request);
+    if (path.endsWith("/activity") && request.method === "GET") return handlePublicActivity(request);
+    if (path.endsWith("/card") && request.method === "GET") return handleCreatorCard(request);
+    if (path.endsWith("/admin/four") && request.method === "GET") return handleAdminFour(request);
+    if (path.endsWith("/claim-card") && request.method === "POST") return handleClaimCard(request);
+    if (path.endsWith("/share") && request.method === "POST") return handleShareConfirmation(request);
     if (path.endsWith("/reward") && request.method === "POST") return handleReward(request);
     if (path.endsWith("/photos") && request.method === "POST") return handlePhoto(request);
     if (path.endsWith("/artwork") && request.method === "POST") return handleArtwork(request);
