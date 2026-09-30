@@ -23,13 +23,15 @@ jobs:
       - name: Setup Node
         uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 22
       - name: Install dependencies
         run: npm install
       - name: Build static campaign
         env:
           NEXT_PUBLIC_BASE_PATH: /thefour
           NEXT_PUBLIC_FOUR_API_URL: https://pblahfvxzldcjyurpvgd.supabase.co/functions/v1/thefour-api
+          NEXT_PUBLIC_THE_FOUR_POSTER_URL: ${{ secrets.NEXT_PUBLIC_THE_FOUR_POSTER_URL }}
+          NEXT_PUBLIC_TICKETING_URL: ${{ secrets.NEXT_PUBLIC_TICKETING_URL }}
         run: npm run build
       - name: Configure Pages
         uses: actions/configure-pages@v5
