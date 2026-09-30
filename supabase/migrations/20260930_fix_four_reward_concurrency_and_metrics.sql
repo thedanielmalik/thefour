@@ -22,9 +22,9 @@ begin
     return;
   end if;
 
-  select reward_code into existing_code
-  from public.reward_claims
-  where squad_id = p_squad_id
+  select rc.reward_code into existing_code
+  from public.reward_claims rc
+  where rc.squad_id = p_squad_id
   limit 1;
 
   if existing_code is not null then
