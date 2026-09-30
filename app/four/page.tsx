@@ -24,15 +24,21 @@ export default function FourRoom(){
     setCode(value);
     if(!value){setError('Add a Four code to open the room.');setLoading(false);return;}
     let active=true;
-    fourApi('/fours?code='+encodeURIComponent(value)).then(async r=>{
-      const data=await r.json();
-      if(!r.ok)throw new Error(data.error||'Four not found.');
-      if(!active)return;
-      setSquad(data.squad||null);
-      setMembers(Array.isArray(data.members)?data.members:[]);
-    }).catch(e=>{if(active)setError(e instanceof Error?e.message:'Could not load Four room.')})
-      .finally(()=>{if(active)setLoading(false)});
-    return ()=>{active=false};
+    const load=async()=>{
+      try{
+        const r=await fourApi('/fours?code='+encodeURIComponent(value));
+        const data=await r.json();
+        if(!r.ok)throw new Error(data.error||'Four not found.');
+        if(!active)return;
+        setSquad(data.squad||null);
+        setMembers(Array.isArray(data.members)?data.members:[]);
+        setError('');
+      }catch(e){if(active && loading)setError(e instanceof Error?e.message:'Could not load Four room.');}
+      finally{if(active)setLoading(false);}
+    };
+    void load();
+    const timer=window.setInterval(load,5000);
+    return ()=>{active=false;window.clearInterval(timer)};
   },[]);
 
   return <main className="room-page">
