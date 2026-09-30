@@ -46,6 +46,45 @@ const TEMPLATE_META: Array<{id: TemplateId; name: string; note: string}> = [
   {id:'bold',name:'Bold',note:'Navy • gold • statement poster'}
 ];
 
+function drawFlyerBackground(ctx:CanvasRenderingContext2D, template:TemplateId, w:number, h:number, navy:string, orange:string, cream:string, gold:string, wine:string){
+  ctx.save();
+  if(template==='editorial'){
+    ctx.fillStyle=cream;ctx.fillRect(0,0,w,h);
+    const glow=ctx.createRadialGradient(880,190,10,880,190,620);
+    glow.addColorStop(0,'rgba(242,109,33,.20)');glow.addColorStop(.42,'rgba(242,109,33,.07)');glow.addColorStop(1,'rgba(242,109,33,0)');
+    ctx.fillStyle=glow;ctx.fillRect(0,0,w,h);
+    ctx.strokeStyle='rgba(13,27,61,.08)';ctx.lineWidth=2;
+    for(let i=-2;i<10;i++){ctx.beginPath();ctx.arc(150,1150,90+i*42,0,Math.PI*1.05);ctx.stroke();}
+    ctx.fillStyle='rgba(218,175,55,.11)';ctx.beginPath();ctx.arc(920,1080,190,0,Math.PI*2);ctx.fill();
+    ctx.fillStyle='rgba(13,27,61,.035)';ctx.font='900 520px Georgia,serif';ctx.textAlign='right';ctx.fillText('04',1045,1180);
+  }else if(template==='sunset'){
+    const g=ctx.createLinearGradient(0,0,w,h);g.addColorStop(0,orange);g.addColorStop(.42,'#ec7d2a');g.addColorStop(.72,wine);g.addColorStop(1,navy);
+    ctx.fillStyle=g;ctx.fillRect(0,0,w,h);
+    const sun=ctx.createRadialGradient(180,210,20,180,210,520);sun.addColorStop(0,'rgba(255,246,233,.42)');sun.addColorStop(.22,'rgba(255,246,233,.16)');sun.addColorStop(1,'rgba(255,246,233,0)');ctx.fillStyle=sun;ctx.fillRect(0,0,w,h);
+    ctx.fillStyle='rgba(218,175,55,.18)';ctx.beginPath();ctx.arc(870,360,230,0,Math.PI*2);ctx.fill();
+    ctx.strokeStyle='rgba(255,246,233,.11)';ctx.lineWidth=2;
+    for(let i=0;i<11;i++){ctx.beginPath();ctx.moveTo(40+i*100,0);ctx.lineTo(520+i*100,h);ctx.stroke();}
+    ctx.fillStyle='rgba(13,27,61,.13)';ctx.font='900 620px Georgia,serif';ctx.textAlign='right';ctx.fillText('4',1065,600);
+  }else if(template==='magazine'){
+    ctx.fillStyle='#fbf7ef';ctx.fillRect(0,0,w,h);
+    const g=ctx.createLinearGradient(0,0,w,0);g.addColorStop(0,'rgba(13,27,61,.03)');g.addColorStop(.5,'rgba(242,109,33,.08)');g.addColorStop(1,'rgba(218,175,55,.10)');
+    ctx.fillStyle=g;ctx.fillRect(0,0,w,h);
+    ctx.strokeStyle='rgba(242,109,33,.18)';ctx.lineWidth=3;
+    for(let i=0;i<6;i++){ctx.beginPath();ctx.moveTo(0,1040+i*55);ctx.quadraticCurveTo(360,980+i*55,1080,1110+i*55);ctx.stroke();}
+    ctx.fillStyle='rgba(218,175,55,.16)';ctx.beginPath();ctx.arc(970,210,125,0,Math.PI*2);ctx.fill();
+    ctx.fillStyle='rgba(13,27,61,.035)';ctx.font='900 420px Georgia,serif';ctx.textAlign='right';ctx.fillText('4',1045,1230);
+  }else{
+    ctx.fillStyle=navy;ctx.fillRect(0,0,w,h);
+    const g=ctx.createLinearGradient(0,0,w,h);g.addColorStop(0,'rgba(242,109,33,.26)');g.addColorStop(.42,'rgba(111,29,43,.16)');g.addColorStop(1,'rgba(218,175,55,.12)');
+    ctx.fillStyle=g;ctx.fillRect(0,0,w,h);
+    ctx.fillStyle='rgba(218,175,55,.12)';ctx.beginPath();ctx.arc(140,170,190,0,Math.PI*2);ctx.fill();
+    ctx.strokeStyle='rgba(255,246,233,.10)';ctx.lineWidth=3;
+    for(let i=0;i<7;i++){ctx.beginPath();ctx.arc(980,1180,150+i*42,0,Math.PI*1.42);ctx.stroke();}
+    ctx.fillStyle='rgba(255,246,233,.055)';ctx.font='900 520px Georgia,serif';ctx.textAlign='right';ctx.fillText('04',1050,560);
+  }
+  ctx.restore();
+}
+
 function roundedPhoto(ctx: CanvasRenderingContext2D, img: HTMLImageElement, x:number, y:number, w:number, h:number, radius:number, border:string, lineWidth=3) {
   ctx.save();
   ctx.beginPath();
@@ -80,7 +119,7 @@ async function makeFourFlyer(imgs:HTMLImageElement[], members:Member[], codeValu
   ctx.textBaseline='alphabetic';
 
   if(template==='editorial'){
-    ctx.fillStyle=cream;ctx.fillRect(0,0,FLYER_WIDTH,FLYER_HEIGHT);
+    drawFlyerBackground(ctx,'editorial',FLYER_WIDTH,FLYER_HEIGHT,navy,orange,cream,gold,wine);
     ctx.fillStyle=navy;ctx.textAlign='center';ctx.font='700 18px Arial,sans-serif';ctx.fillText('A FUNKE AKINDELE FILM',540,48);
     ctx.fillStyle=orange;ctx.font='900 116px Georgia,serif';ctx.fillText('THE',540,152);
     ctx.fillStyle=navy;ctx.font='500 150px Georgia,serif';ctx.fillText('FOUR',540,268);
@@ -101,8 +140,7 @@ async function makeFourFlyer(imgs:HTMLImageElement[], members:Member[], codeValu
   }
 
   if(template==='sunset'){
-    const g=ctx.createLinearGradient(0,0,0,FLYER_HEIGHT);g.addColorStop(0,orange);g.addColorStop(.56,'#d84b1c');g.addColorStop(1,wine);
-    ctx.fillStyle=g;ctx.fillRect(0,0,FLYER_WIDTH,FLYER_HEIGHT);
+    drawFlyerBackground(ctx,'sunset',FLYER_WIDTH,FLYER_HEIGHT,navy,orange,cream,gold,wine);
     ctx.fillStyle='rgba(255,246,233,.10)';ctx.textAlign='right';ctx.font='900 480px Georgia,serif';ctx.fillText('4',1060,530);
     ctx.fillStyle=cream;ctx.textAlign='center';ctx.font='700 17px Arial,sans-serif';ctx.fillText('A FUNKE AKINDELE FILM',540,50);
     ctx.font='900 118px Georgia,serif';ctx.fillText('THE FOUR',540,152);
@@ -125,7 +163,7 @@ async function makeFourFlyer(imgs:HTMLImageElement[], members:Member[], codeValu
   }
 
   if(template==='magazine'){
-    ctx.fillStyle='#fbf7ef';ctx.fillRect(0,0,FLYER_WIDTH,FLYER_HEIGHT);
+    drawFlyerBackground(ctx,'magazine',FLYER_WIDTH,FLYER_HEIGHT,navy,orange,cream,gold,wine);
     ctx.fillStyle=navy;ctx.textAlign='left';ctx.font='800 17px Arial,sans-serif';ctx.fillText('THE FOUR / NO. 01 / '+RELEASE_YEAR,42,42);
     ctx.textAlign='right';ctx.fillText('A FUNKE AKINDELE FILM',1038,42);
     ctx.textAlign='center';ctx.fillStyle=navy;
@@ -148,8 +186,7 @@ async function makeFourFlyer(imgs:HTMLImageElement[], members:Member[], codeValu
   }
 
   if(template==='bold'){
-    ctx.fillStyle=navy;ctx.fillRect(0,0,FLYER_WIDTH,FLYER_HEIGHT);
-    ctx.fillStyle='rgba(218,175,55,.12)';ctx.textAlign='right';ctx.font='900 520px Georgia,serif';ctx.fillText('04',1040,520);
+    drawFlyerBackground(ctx,'bold',FLYER_WIDTH,FLYER_HEIGHT,navy,orange,cream,gold,wine);
     ctx.fillStyle=cream;ctx.textAlign='left';ctx.font='800 18px Arial,sans-serif';ctx.fillText('A FUNKE AKINDELE FILM',44,50);
     ctx.fillStyle=gold;ctx.textAlign='right';ctx.fillText(RELEASE_YEAR,1036,50);
     ctx.textAlign='center';ctx.fillStyle=cream;ctx.font='900 112px Georgia,serif';ctx.fillText('THE FOUR',540,160);
