@@ -10,3 +10,5 @@ on conflict (id) do update set
 create index if not exists idx_four_members_photo_url
 on public.four_members(photo_url)
 where photo_url is not null;
+
+alter table public.four_members add column if not exists consent boolean not null default false;
