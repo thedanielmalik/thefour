@@ -155,7 +155,8 @@ export default function Home() {
       const blob=await new Promise<Blob|null>(resolve=>canvas.toBlob(resolve,'image/jpeg',.94));
       const artworkData=canvas.toDataURL('image/jpeg',.94);setArtwork(artworkData);setArtworkBlob(blob);setStep(3);
       void trackEvent(fourCode,'artwork_generated','web',{memberCount:4});
-    }finally{setBusy(false);}
+    }catch(e){setApiNote(e instanceof Error?e.message:'Could not create your Four artwork.');}
+    finally{setBusy(false);}
   }
 
   function inviteUrl(){const u=new URL(window.location.href);const base=u.pathname.replace(/\/?$/,'/');u.pathname=base+'four/';u.search='';u.searchParams.set('code',code||makeCode());return u.toString();}
@@ -198,8 +199,8 @@ export default function Home() {
       }catch(uploadError){setApiNote(uploadError instanceof Error?uploadError.message:'Registration saved, but one media item still needs to sync.');}
       setApiNote(data.demo?'Prototype mode: registration remains local until the campaign database is connected.':'Your Four registration is saved and your Four Room is live.');
     }catch(e){
-      setRegistered(true);
-      setApiNote(e instanceof Error?e.message+' The prototype will keep your journey on this device.':'Prototype registration saved locally.');
+      setRegistered(false);
+      setApiNote(e instanceof Error?e.message:'Registration failed. Please try again.');
     }finally{setBusy(false);}
   }
 
