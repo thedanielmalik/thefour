@@ -79,16 +79,17 @@ export default function FourRoom(){
       const artwork=squad?.artwork_url||roomUrl;
       const text='My Four is coming together. ❤️ Join us for THE FOUR — no one fights alone.';
       let completed=false;
-      if(navigator.share){
+      let usedNativeShare=false;
+      if('share' in navigator && typeof navigator.share==='function'){
         try{
           await navigator.share({title:'THE FOUR — My Four',text,url:roomUrl});
-          completed=true;
+          completed=true;usedNativeShare=true;
         }catch{}
       }else{
         try{await navigator.clipboard?.writeText(text+' '+roomUrl);completed=true;}catch{}
       }
       if(!completed){setShareNote('Share was cancelled. Please share and try again.');return;}
-      const res=await fourApi('/share',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({code,memberNumber:selectedMember,phone:phone.trim(),channel:navigator.share?'native_share':'other_self_confirmed'})});
+      const res=await fourApi('/share',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({code,memberNumber:selectedMember,phone:phone.trim(),channel:usedNativeShare?'native_share':'other_self_confirmed'})});
       const data=await res.json();
       if(!res.ok)throw new Error(data.error||'Your share could not be confirmed.');
       setShareNote(data.cardIssued && selectedMember===1 ? 'All four shares are confirmed. Your creator reward card is ready.' : 'Your share is confirmed. The Four Room is updated.');
