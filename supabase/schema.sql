@@ -82,3 +82,16 @@ drop trigger if exists trg_four_squads_updated_at on public.four_squads;
 create trigger trg_four_squads_updated_at
 before update on public.four_squads
 for each row execute function public.set_updated_at();
+
+
+alter function public.set_four_updated_at() set search_path = public;
+
+create or replace view public.four_campaign_metrics
+with (security_invoker = true)
+as
+select
+  (select count(*) from public.four_squads) as four_squads_created,
+  (select count(*) from public.four_members) as people_registered,
+  (select count(*) from public.campaign_events where event_type = 'shared') as social_shares,
+  (select count(*) from public.campaign_events where event_type = 'cinema_selected') as cinema_intent,
+  (select count(*) from public.reward_claims where status in ('qualified','claimed')) as rewards_qualified;
