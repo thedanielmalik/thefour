@@ -6,7 +6,8 @@ import { fourApi } from '../lib/four-api';
 type Member = { file: File | null; name: string; preview: string | null };
 type Cinema = { name: string; area: string; showtimes: string[] };
 
-// DEMO inventory only. Replace with approved partner/cinema feed before launch.\nconst CINEMAS: Cinema[] = [
+// DEMO inventory only. Replace with approved partner/cinema feed before launch.
+const CINEMAS: Cinema[] = [
   { name: 'Genesis Deluxe Cinemas — Maryland (DEMO)', area: 'Lagos', showtimes: ['12:30 PM','3:15 PM','6:00 PM','8:45 PM'] },
   { name: 'Filmhouse Cinemas — Lekki (DEMO)', area: 'Lagos', showtimes: ['1:00 PM','3:45 PM','6:30 PM','9:15 PM'] },
   { name: 'Filmhouse Cinemas — Surulere (DEMO)', area: 'Lagos', showtimes: ['12:15 PM','3:00 PM','5:45 PM','8:30 PM'] },
@@ -15,7 +16,11 @@ type Cinema = { name: string; area: string; showtimes: string[] };
 
 const freshMembers = (): Member[] => [1,2,3,4].map(() => ({ file:null, name:'', preview:null }));
 
-async function trackEvent(code: string | undefined, eventType: 'created'|'photo_uploaded'|'artwork_generated'|'shared'|'invited'|'member_joined'|'registered'|'cinema_selected'|'ticket_clicked'|'reward_qualified'|'reward_claimed'|'attended', channel?: string, metadata?: Record<string, unknown>) {\n  try { await fourApi('/events',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({code,eventType,channel,metadata})}); } catch {}\n}\n\nfunction makeCode() {
+async function trackEvent(code: string | undefined, eventType: 'created'|'photo_uploaded'|'artwork_generated'|'shared'|'invited'|'member_joined'|'registered'|'cinema_selected'|'ticket_clicked'|'reward_qualified'|'reward_claimed'|'attended', channel?: string, metadata?: Record<string, unknown>) {
+  try { await fourApi('/events',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({code,eventType,channel,metadata})}); } catch {}
+}
+
+function makeCode() {
   const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
   let code = 'F4-';
   for (let i=0;i<6;i++) code += chars[Math.floor(Math.random()*chars.length)];
@@ -36,7 +41,9 @@ export default function Home() {
   const [artwork,setArtwork]=useState<string|null>(null);
   const [artworkBlob,setArtworkBlob]=useState<Blob|null>(null);
   const [busy,setBusy]=useState(false);
-  const [registered,setRegistered]=useState(false);\n  const [isInvite,setIsInvite]=useState(false);\n  const [memberNumber,setMemberNumber]=useState<number|null>(null);
+  const [registered,setRegistered]=useState(false);
+  const [isInvite,setIsInvite]=useState(false);
+  const [memberNumber,setMemberNumber]=useState<number|null>(null);
   const [chosenCinema,setChosenCinema]=useState('');
   const [chosenShowtime,setChosenShowtime]=useState('');
   const [chosenDate,setChosenDate]=useState('');
@@ -44,7 +51,9 @@ export default function Home() {
   const [regPhone,setRegPhone]=useState('');
   const [regEmail,setRegEmail]=useState('');
   const [consent,setConsent]=useState(false);
-  const [apiNote,setApiNote]=useState('');\n  const [inviteMembers,setInviteMembers]=useState<Array<{member_number:number;name:string|null}>>([]);\n  const [reward,setReward]=useState<{qualified:boolean;reward_code:string|null;rank:number|null}|null>(null);
+  const [apiNote,setApiNote]=useState('');
+  const [inviteMembers,setInviteMembers]=useState<Array<{member_number:number;name:string|null}>>([]);
+  const [reward,setReward]=useState<{qualified:boolean;reward_code:string|null;rank:number|null}|null>(null);
   const fileInputs=useRef<Array<HTMLInputElement|null>>([]);
 
   const posterUrl = process.env.NEXT_PUBLIC_THE_FOUR_POSTER_URL || '';
@@ -76,7 +85,9 @@ export default function Home() {
 
   function setName(i:number,name:string){setMembers(prev=>prev.map((m,idx)=>idx===i?{...m,name}:m));}
 
-  async function trackEvent(codeValue:string|undefined,eventType:string,channel='web',metadata?:Record<string,unknown>){try{await fetch('/api/fours/events',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({code:codeValue,eventType,channel,metadata})})}catch{}}\n\n  async function generateArtwork(){
+  async function trackEvent(codeValue:string|undefined,eventType:string,channel='web',metadata?:Record<string,unknown>){try{await fetch('/api/fours/events',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({code:codeValue,eventType,channel,metadata})})}catch{}}
+
+  async function generateArtwork(){
     if(!complete){alert('Add all four photos before creating your Four.');return;}
     setBusy(true);
     try{
@@ -101,7 +112,9 @@ export default function Home() {
       ctx.fillStyle='#173b4d';ctx.font='700 17px Arial,sans-serif';ctx.fillText('FIND YOUR FOUR  •  BRING YOUR FOUR  •  WATCH THE FOUR',540,1250);
       ctx.fillStyle='#665a54';ctx.font='15px Arial,sans-serif';ctx.fillText('FOUR CODE: '+fourCode,540,1290);
       const blob=await new Promise<Blob|null>(resolve=>canvas.toBlob(resolve,'image/jpeg',.94));
-      setArtwork(canvas.toDataURL('image/jpeg',.94));setArtworkBlob(blob);setStep(3);\n      void trackEvent(fourCode,'artwork_generated','web',{memberCount:4});\n      void trackEvent(fourCode,'artwork_generated','web',{memberCount:4});
+      setArtwork(canvas.toDataURL('image/jpeg',.94));setArtworkBlob(blob);setStep(3);
+      void trackEvent(fourCode,'artwork_generated','web',{memberCount:4});
+      void trackEvent(fourCode,'artwork_generated','web',{memberCount:4});
     }finally{setBusy(false);}
   }
 
@@ -109,7 +122,8 @@ export default function Home() {
 
   async function shareFour(){
     if(!artworkBlob)return;
-    const url=inviteUrl(),text='I found my Four. ❤️ You are one of mine. Join my Four for THE FOUR.';\n    void trackEvent(code,'shared','native_share');
+    const url=inviteUrl(),text='I found my Four. ❤️ You are one of mine. Join my Four for THE FOUR.';
+    void trackEvent(code,'shared','native_share');
     try{
       if(navigator.share){
         const file=new File([artworkBlob],'my-four-'+code+'.jpg',{type:'image/jpeg'});
