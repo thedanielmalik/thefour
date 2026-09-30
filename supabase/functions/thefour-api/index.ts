@@ -133,9 +133,9 @@ async function handleFours(request: Request) {
 
   const code = String(body.code).trim().toUpperCase();
   const requestedMember = Number(body.memberNumber || 0);
-  const existing = await findSquad(code);
-  let squadId = existing?.id as string | undefined;
-  let memberNumber = requestedMember >= 1 && requestedMember <= 4 ? requestedMember : 1;
+  let squad = await findSquad(code);
+  let squadId: string | undefined = squad?.id;
+  let createdSquad = false;
 
   if (!squadId) {
     const create = await rest("/four_squads", {
@@ -154,104 +154,64 @@ async function handleFours(request: Request) {
       })
     });
 
-    if (!create.ok) return json({ error: "Could not create the Four." }, 502);
-
-    const rows = await create.json();
-    squadId = rows[0]?.id;
-    memberNumber = 1;
-  } else {
-    const current = await rest(
-      "/four_members?squad_id=eq." +
-        encodeURIComponent(squadId) +
-        "&select=id,member_number,phone,email&order=member_number.asc"
-    );
-    const occupied = current.ok ? await current.json() : [];
-
-    let identifiedExisting = false;
-    if (!requestedMember) {
-      const existingPhone = occupied.find(
-        (x: { member_number:number; phone?:string|null }) =>
-          String(x.phone || "").trim() === String(body.phone || "").trim()
-      );
-      if (existingPhone) {
-        memberNumber = Number(existingPhone.member_number);
-        identifiedExisting = true;
-      }
-    }
-
-    const requestedOccupied = occupied.find(
-      (x: { member_number: number }) => x.member_number === memberNumber
-    );
-
-    if ((requestedMember || identifiedExisting) && requestedOccupied) {
-      const samePerson =
-        String(requestedOccupied.phone || "").trim() === String(body.phone || "").trim();
-
-      if (!samePerson) return json({ error: "That Four place is already claimed." }, 409);
-    } else if (!requestedMember) {
-      const next = [1, 2, 3, 4].find(
-        n => !occupied.some((x: { member_number: number }) => x.member_number === n)
-      );
-      if (!next) return json({ error: "This Four is already complete." }, 409);
-      memberNumber = next;
-    }
-
-    if (body.preferredCinema) {
-      const update = await rest(
-        "/four_squads?id=eq." + encodeURIComponent(squadId),
-        {
-          method: "PATCH",
-          body: JSON.stringify({
-            preferred_cinema: body.preferredCinema,
-            preferred_date: body.preferredDate || null,
-            preferred_showtime: body.preferredShowtime || null
-          })
-        }
-      );
-      if (!update.ok) return json({ error: "Could not save cinema choice." }, 502);
+    if (!create.ok) {
+      // A simultaneous creator may have won the unique code. Re-read before failing.
+      squad = await findSquad(code);
+      if (!squad) return json({ error: "Could not create the Four." }, 502);
+      squadId = squad.id;
+    } else {
+      const rows = await create.json();
+      squadId = rows[0]?.id;
+      createdSquad = true;
     }
   }
 
-  const existingMember = await rest(
-    "/four_members?squad_id=eq." +
-      encodeURIComponent(squadId) +
-      "&member_number=eq." +
-      memberNumber +
-      "&select=id"
-  );
-  const existingMemberRows = existingMember.ok ? await existingMember.json() : [];
+  if (!squadId) return json({ error: "Could not create the Four." }, 502);
 
-  const payload = {
-    squad_id: squadId,
-    member_number: memberNumber,
-    name: body.name.trim(),
-    phone: body.phone.trim(),
-    email: body.email?.trim() || null,
-    consent: true,
-    joined_at: new Date().toISOString()
-  };
+  const memberRpc = await rest("/rpc/claim_four_member", {
+    method: "POST",
+    body: JSON.stringify({
+      p_squad_id: squadId,
+      p_member_number: requestedMember >= 1 && requestedMember <= 4 ? requestedMember : null,
+      p_name: body.name.trim(),
+      p_phone: body.phone.trim(),
+      p_email: body.email?.trim() || null,
+      p_consent: true
+    })
+  });
 
-  const member = existingMemberRows[0]?.id
-    ? await rest("/four_members?id=eq." + encodeURIComponent(existingMemberRows[0].id), {
+  if (!memberRpc.ok) {
+    const detail = await memberRpc.text().catch(() => "");
+    if (detail.includes("That Four place is already claimed")) return json({ error: "That Four place is already claimed." }, 409);
+    if (detail.includes("This Four is already complete")) return json({ error: "This Four is already complete." }, 409);
+    return json({ error: "Could not save Four member." }, 502);
+  }
+
+  const memberRows = await memberRpc.json();
+  const memberNumber = Number(memberRows[0]?.member_number);
+  if (![1,2,3,4].includes(memberNumber)) return json({ error: "Could not determine Four member." }, 502);
+
+  if (body.preferredCinema) {
+    const update = await rest(
+      "/four_squads?id=eq." + encodeURIComponent(squadId),
+      {
         method: "PATCH",
-        body: JSON.stringify(payload)
-      })
-    : await rest("/four_members", {
-        method: "POST",
-        headers: { Prefer: "return=representation" },
-        body: JSON.stringify(payload)
-      });
-
-  if (!member.ok) return json({ error: "Could not save Four member." }, 502);
+        body: JSON.stringify({
+          preferred_cinema: body.preferredCinema,
+          preferred_date: body.preferredDate || null,
+          preferred_showtime: body.preferredShowtime || null
+        })
+      }
+    );
+    if (!update.ok) return json({ error: "Could not save cinema choice." }, 502);
+  }
 
   await logEvent(
     code,
     body.preferredCinema
       ? "cinema_selected"
-      : memberNumber === 1
-      ? existing
-        ? "member_joined"
-        : "created"
+      : createdSquad
+      ? "created"
       : "member_joined",
     "web",
     {
