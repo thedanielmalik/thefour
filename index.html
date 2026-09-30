@@ -1,1 +1,39 @@
-<!doctype html><html><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0"><title>The Four — Find Your Four</title></head><body><h1>THE FOUR — FIND YOUR FOUR</h1><p>Prototype coming together.</p></body></html>
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>The Four — Find Your Four</title>
+<meta name="description" content="Find your Four. Create your Four. Share your Four. Watch The Four.">
+<style>
+:root{--cream:#f4efe5;--ink:#171616;--wine:#6f1d2b;--rust:#b8672f;--blue:#173b4d;--muted:#6d625d;--card:#fffaf0}
+*{box-sizing:border-box}body{margin:0;font-family:Inter,system-ui,-apple-system,Segoe UI,Arial,sans-serif;background:var(--cream);color:var(--ink)}
+.container{max-width:1100px;margin:auto;padding:0 24px}.nav{display:flex;justify-content:space-between;align-items:center;padding:24px 0}.brand{font-family:Georgia,serif;font-size:28px;letter-spacing:.08em}.pill{border:1px solid #2a2020;padding:10px 16px;border-radius:999px;font-size:12px;letter-spacing:.12em;text-transform:uppercase}
+.hero{padding:54px 0 80px;display:grid;grid-template-columns:1.1fr .9fr;gap:50px;align-items:end}.kicker{text-transform:uppercase;letter-spacing:.2em;font-size:12px;color:var(--wine);font-weight:800}
+.hero h1{font-family:Georgia,serif;font-size:clamp(64px,10vw,130px);line-height:.88;margin:18px 0;color:var(--blue);font-weight:500}.hero p{font-size:21px;line-height:1.5;max-width:620px;color:#4d4743}
+.cta{display:flex;gap:14px;flex-wrap:wrap;margin-top:28px}.btn{border:0;border-radius:999px;padding:16px 22px;font-weight:800;cursor:pointer;font-size:14px}.primary{background:var(--wine);color:#fff}.secondary{background:transparent;border:1px solid #2f2927}
+.hero-card{background:var(--ink);color:white;border-radius:28px;min-height:450px;padding:28px;position:relative;overflow:hidden}.hero-card:after{content:"4";position:absolute;font-family:Georgia,serif;font-size:480px;line-height:1;right:-25px;bottom:-110px;color:rgba(255,255,255,.06)}
+.card-title{position:relative;z-index:1;font-family:Georgia,serif;font-size:42px;line-height:1;margin-top:65px}.section{padding:45px 0}.section h2{font-family:Georgia,serif;font-weight:500;font-size:56px;margin:0 0 18px;color:var(--blue)}.section p{color:var(--muted);font-size:18px;line-height:1.6;max-width:720px}
+.steps{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin:34px 0 72px}.step{background:#e9dfcf;border-radius:18px;padding:20px;min-height:160px}.step b{display:block;font-family:Georgia,serif;font-size:42px;color:var(--wine);margin-bottom:16px}.step span{font-weight:800;text-transform:uppercase;letter-spacing:.08em;font-size:12px}.step p{font-size:15px;margin:10px 0 0}
+.experience{display:grid;grid-template-columns:1fr 1fr;gap:22px;margin-top:30px}.panel{background:var(--card);padding:28px;border-radius:24px;border:1px solid #ded3c2}.panel h3{margin:0 0 8px;font-family:Georgia,serif;font-size:31px;color:var(--wine)}.panel ul{padding-left:20px;color:#514945;line-height:1.7}
+.mock{background:#171616;border-radius:24px;min-height:420px;color:white;padding:30px;display:flex;align-items:center;justify-content:center;text-align:center}.phone{width:240px;height:420px;border:8px solid #222;border-radius:34px;background:linear-gradient(160deg,#f7efe5,#d7baa0);padding:16px;color:#411823;display:flex;flex-direction:column;justify-content:space-between}.phone h4{font-family:Georgia,serif;font-size:34px;margin:0}.phone .faces{display:grid;grid-template-columns:repeat(2,1fr);gap:8px}.face{height:110px;background:linear-gradient(135deg,#8a5a44,#d69c74);border-radius:16px}.dash{margin-top:25px;display:grid;grid-template-columns:repeat(4,1fr);gap:12px}.metric{background:#efe5d5;padding:20px;border-radius:18px}.metric strong{font-size:28px;color:var(--wine)}.metric span{display:block;font-size:11px;text-transform:uppercase;letter-spacing:.1em;margin-top:6px;color:#625952}
+.footer{padding:50px 0 70px;border-top:1px solid #d4c8b8;margin-top:70px}.footer h2{font-family:Georgia,serif;font-size:56px;color:var(--wine);margin:0}.small{font-size:12px;color:#766d68;line-height:1.5}
+@media(max-width:800px){.hero,.experience{grid-template-columns:1fr}.steps,.dash{grid-template-columns:repeat(2,1fr)}.hero h1{font-size:76px}.hero-card{min-height:320px}}
+</style>
+</head>
+<body>
+<div class="container">
+<nav class="nav"><div class="brand">THE FOUR</div><div class="pill">WAWO BRAND HOUSE • CONCEPT</div></nav>
+<section class="hero"><div><div class="kicker">No One Fights Alone</div><h1>Find<br>Your Four.</h1><p>Everybody has a Four. The people you call first, the friends who show up, the people you want beside you when something big happens.</p><div class="cta"><button class="btn primary" onclick="document.getElementById('create').scrollIntoView({behavior:'smooth'})">Create My Four</button><button class="btn secondary" onclick="document.getElementById('how').scrollIntoView({behavior:'smooth'})">See How It Works</button></div></div><div class="hero-card"><div class="kicker" style="color:#e6c5b8">The Four Experience</div><div class="card-title">A campaign<br>people can<br>participate in.</div></div></section>
+<section id="how" class="section"><div class="kicker">The campaign loop</div><h2>Find. Create. Share. Watch.</h2><p>One simple journey turns friendship into personalised content, registration, social sharing and a path to the cinema.</p><div class="steps">
+<div class="step"><b>01</b><span>Find</span><p>Choose the four people you want beside you.</p></div>
+<div class="step"><b>02</b><span>Create</span><p>Build your personalised Four artwork.</p></div>
+<div class="step"><b>03</b><span>Share</span><p>Invite your three and share your Four.</p></div>
+<div class="step"><b>04</b><span>Watch</span><p>Choose your cinema and complete the journey.</p></div>
+</div></section>
+<section id="create" class="section"><div class="experience">
+<div class="panel"><div class="kicker">Digital experience</div><h3>Your Four becomes the campaign.</h3><ul><li>Upload four photos or take one group photo.</li><li>Generate campaign-ready artwork using the approved THE FOUR look.</li><li>Share through the phone’s native share flow, WhatsApp or download for social.</li><li>Invite the other three members through one unique Four link.</li></ul><button class="btn primary" onclick="alert('Prototype action: connect image upload and campaign artwork generation here.')">Start Prototype</button></div>
+<div class="mock"><div class="phone"><div><div class="kicker">Create Your Four</div><h4>Your Four</h4></div><div class="faces"><div class="face"></div><div class="face"></div><div class="face"></div><div class="face"></div></div><button class="btn primary">Generate</button></div></div>
+</div></section>
+<section class="section"><div class="kicker">Campaign intelligence</div><h2>The audience becomes measurable.</h2><p>Capture only the information needed for the journey, with clear consent. Track the funnel from Four creation through cinema intent and reward claims.</p><div class="dash"><div class="metric"><strong>—</strong><span>Four Squads Created</span></div><div class="metric"><strong>—</strong><span>People Registered</span></div><div class="metric"><strong>—</strong><span>Cinema Intent</span></div><div class="metric"><strong>—</strong><span>Ticket / RSVP Actions</span></div></div></section>
+<footer class="footer"><div class="kicker">WAWO Brand House</div><h2>Let’s build<br>the first Four.</h2><p class="small">Prototype concept only. Final campaign implementation, movie artwork, talent likenesses, ticketing integrations, privacy language and reward mechanics require approval from the relevant rights holders and partners.</p></footer>
+</div></body></html>
