@@ -43,7 +43,7 @@ begin
   end if;
 
   loop
-    new_code := 'F4R-' || upper(substr(encode(gen_random_bytes(5),'hex'),1,10));
+    new_code := 'F4R-' || upper(substr(encode(extensions.gen_random_bytes(5),'hex'),1,10));
     begin
       insert into public.reward_claims(squad_id,reward_code,qualified_at,status)
       values(p_squad_id,new_code,now(),'qualified');
