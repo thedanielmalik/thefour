@@ -331,7 +331,7 @@ async function handleArtwork(request: Request) {
     "/four_squads?id=eq." + encodeURIComponent(squad.id),
     {
       method: "PATCH",
-      body: JSON.stringify({ artwork_url: path, status: "complete" })
+      body: JSON.stringify({ artwork_url: path, status: "registered" })
     }
   );
   if (!update.ok) return json({ error: "Artwork stored but could not link it." }, 502);
