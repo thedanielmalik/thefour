@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import { fourApi } from '../../lib/four-api';
 
 const labels=[
   ['four_squads_created','Four Squads Created'],
@@ -22,7 +23,7 @@ export default function AdminPage(){
     if(!token.trim()){setError('Enter the dashboard token.');return;}
     setLoading(true);setError('');
     try{
-      const res=await fetch('/api/admin/metrics',{headers:{Authorization:'Bearer '+token.trim()}});
+      const res=await fourApi('/metrics',{headers:{'x-admin-token':token.trim()}});
       const data=await res.json();
       if(!res.ok)throw new Error(data.error||'Could not load dashboard.');
       setMetrics(data);
