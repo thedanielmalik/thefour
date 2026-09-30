@@ -216,6 +216,7 @@ async function handleFours(request: Request) {
     name: body.name.trim(),
     phone: body.phone.trim(),
     email: body.email?.trim() || null,
+    consent: true,
     joined_at: new Date().toISOString()
   };
 
