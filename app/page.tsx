@@ -259,7 +259,7 @@ export default function Home() {
     setBusy(true);setApiNote('Preparing the shared Four flyer…');
     try{
       const data=await refreshSquad(code);
-      const current=Array.isArray(data?.members)?data.members:[] as Array<{member_number:number;name:string|null;photo_url?:string|null}>;
+      const current: Array<{member_number:number;name:string|null;photo_url?:string|null}> = Array.isArray(data?.members) ? data.members : [];
       if(current.length<4 || current.some((m:{photo_url?:string|null})=>!m.photo_url)) throw new Error('All four members need a photo before the shared flyer can be refreshed.');
       const ordered=current.slice().sort((a:{member_number:number},b:{member_number:number})=>a.member_number-b.member_number);
       const imgs=await Promise.all(ordered.map((m:{photo_url?:string|null})=>new Promise<HTMLImageElement>((resolve,reject)=>{const img=new Image();img.crossOrigin='anonymous';img.onload=()=>resolve(img);img.onerror=()=>reject(new Error('Could not load one Four photo.'));img.src=m.photo_url!;})));
