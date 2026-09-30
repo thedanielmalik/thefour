@@ -440,7 +440,7 @@ export default function Home() {
     try{
       if(navigator.share){
         const file=new File([artworkBlob],'my-four-'+code+'.jpg',{type:'image/jpeg'});
-        if(navigator.canShare?.({files:[file]})){await navigator.share({title:'My Four',text,url,files:[file]});void trackEvent(code,'shared','native_share');return;}
+        if(navigator.canShare?.({files:[file]})){await navigator.share({title:'My Four',text,url,files:[file]});await confirmMemberShare('native_share');return;}
         await navigator.share({title:'My Four',text,url});await confirmMemberShare('native_share');return;
       }
     }catch{}
