@@ -5,6 +5,7 @@ import { fourApi } from '../lib/four-api';
 
 type Member = { file: File | null; name: string; preview: string | null };
 type Cinema = { name: string; area: string; showtimes: string[] };
+type TemplateId = 'editorial' | 'sunset' | 'magazine' | 'bold';
 
 // DEMO inventory only. Replace with approved partner/cinema feed before launch.
 const CINEMAS: Cinema[] = [
@@ -33,6 +34,146 @@ function drawCover(ctx: CanvasRenderingContext2D, img: HTMLImageElement, x: numb
   ctx.drawImage(img,(img.width-sw)/2,(img.height-sh)/2,sw,sh,x,y,w,h);
 }
 
+const FLYER_WIDTH = 1080;
+const FLYER_HEIGHT = 1350;
+const RELEASE_DATE = 'DECEMBER 11';
+const RELEASE_YEAR = '2026';
+
+const TEMPLATE_META: Array<{id: TemplateId; name: string; note: string}> = [
+  {id:'editorial',name:'Editorial',note:'Cream cover • premium magazine feel'},
+  {id:'sunset',name:'Sunset',note:'Orange cinema glow • bold and warm'},
+  {id:'magazine',name:'Magazine',note:'Clean cover • four vertical portraits'},
+  {id:'bold',name:'Bold',note:'Navy • gold • statement poster'}
+];
+
+function roundedPhoto(ctx: CanvasRenderingContext2D, img: HTMLImageElement, x:number, y:number, w:number, h:number, radius:number, border:string, lineWidth=3) {
+  ctx.save();
+  ctx.beginPath();
+  ctx.roundRect(x,y,w,h,radius);
+  ctx.clip();
+  drawCover(ctx,img,x,y,w,h);
+  ctx.restore();
+  ctx.strokeStyle=border;
+  ctx.lineWidth=lineWidth;
+  ctx.beginPath();
+  ctx.roundRect(x,y,w,h,radius);
+  ctx.stroke();
+}
+
+function textFit(ctx: CanvasRenderingContext2D, text:string, maxWidth:number, startSize:number, minSize:number, fontFamily:string, weight:string) {
+  let size=startSize;
+  while(size>minSize){
+    ctx.font=weight+' '+size+'px '+fontFamily;
+    if(ctx.measureText(text).width<=maxWidth)break;
+    size-=2;
+  }
+  return size;
+}
+
+async function makeFourFlyer(imgs:HTMLImageElement[], members:Member[], codeValue:string, template:TemplateId) {
+  const canvas=document.createElement('canvas');
+  canvas.width=FLYER_WIDTH;canvas.height=FLYER_HEIGHT;
+  const ctx=canvas.getContext('2d');
+  if(!ctx)throw new Error('Could not create flyer.');
+  const navy='#0D1B3D', orange='#F26D21', cream='#FFF6E9', gold='#DAAF37', wine='#6f1d2b', ink='#171616', white='#fff';
+
+  ctx.textBaseline='alphabetic';
+
+  if(template==='editorial'){
+    ctx.fillStyle=cream;ctx.fillRect(0,0,FLYER_WIDTH,FLYER_HEIGHT);
+    ctx.fillStyle=navy;ctx.textAlign='center';ctx.font='700 18px Arial,sans-serif';ctx.fillText('A FUNKE AKINDELE FILM',540,48);
+    ctx.fillStyle=orange;ctx.font='900 116px Georgia,serif';ctx.fillText('THE',540,152);
+    ctx.fillStyle=navy;ctx.font='500 150px Georgia,serif';ctx.fillText('FOUR',540,268);
+    ctx.fillStyle=wine;ctx.font='800 22px Arial,sans-serif';ctx.fillText('NO ONE FIGHTS ALONE',540,302);
+    const margin=52,gap=18,tileW=(1080-margin*2-gap)/2,tileH=430,top=340;
+    imgs.forEach((img,i)=>{
+      const x=margin+(i%2)*(tileW+gap),y=top+Math.floor(i/2)*(tileH+gap);
+      roundedPhoto(ctx,img,x,y,tileW,tileH,18,wine,4);
+      ctx.fillStyle='rgba(13,27,61,.82)';ctx.fillRect(x,y+tileH-60,tileW,60);
+      ctx.fillStyle=white;ctx.textAlign='left';ctx.font='700 17px Arial,sans-serif';ctx.fillText((members[i].name||('MEMBER '+String(i+1).padStart(2,'0'))).toUpperCase(),x+16,y+tileH-23);
+      ctx.fillStyle=gold;ctx.textAlign='right';ctx.font='900 18px Arial,sans-serif';ctx.fillText('0'+(i+1),x+tileW-16,y+tileH-23);
+    });
+    ctx.fillStyle=orange;ctx.fillRect(52,1234,976,4);
+    ctx.fillStyle=navy;ctx.textAlign='left';ctx.font='800 18px Arial,sans-serif';ctx.fillText('WHO ARE YOUR FOUR?',52,1282);
+    ctx.textAlign='right';ctx.fillText('IN CINEMAS '+RELEASE_DATE,1028,1282);
+    ctx.fillStyle=wine;ctx.font='700 14px Arial,sans-serif';ctx.fillText('DECEMBER '+RELEASE_YEAR,1028,1307);
+    ctx.textAlign='center';ctx.fillStyle=navy;ctx.font='700 13px Arial,sans-serif';ctx.fillText('FIND YOUR FOUR  •  BRING YOUR FOUR  •  WATCH THE FOUR',540,1335);
+  }
+
+  if(template==='sunset'){
+    const g=ctx.createLinearGradient(0,0,0,FLYER_HEIGHT);g.addColorStop(0,orange);g.addColorStop(.56,'#d84b1c');g.addColorStop(1,wine);
+    ctx.fillStyle=g;ctx.fillRect(0,0,FLYER_WIDTH,FLYER_HEIGHT);
+    ctx.fillStyle='rgba(255,246,233,.10)';ctx.textAlign='right';ctx.font='900 480px Georgia,serif';ctx.fillText('4',1060,530);
+    ctx.fillStyle=cream;ctx.textAlign='center';ctx.font='700 17px Arial,sans-serif';ctx.fillText('A FUNKE AKINDELE FILM',540,50);
+    ctx.font='900 118px Georgia,serif';ctx.fillText('THE FOUR',540,152);
+    ctx.font='800 20px Arial,sans-serif';ctx.fillText('NO ONE FIGHTS ALONE',540,185);
+    const margin=34,gap=9,tileW=(1080-margin*2-gap*3)/4,tileH=680,top=236;
+    imgs.forEach((img,i)=>{
+      const x=margin+i*(tileW+gap);
+      roundedPhoto(ctx,img,x,top,tileW,tileH,16,cream,3);
+      const overlay=ctx.createLinearGradient(0,top,0,top+tileH);overlay.addColorStop(.58,'rgba(13,27,61,0)');overlay.addColorStop(1,'rgba(13,27,61,.88)');
+      ctx.fillStyle=overlay;ctx.beginPath();ctx.roundRect(x,top,tileW,tileH,16);ctx.fill();
+      ctx.fillStyle=cream;ctx.textAlign='center';ctx.font='800 13px Arial,sans-serif';ctx.fillText((members[i].name||'MEMBER 0'+(i+1)).toUpperCase(),x+tileW/2,top+tileH-26);
+    });
+    ctx.fillStyle=gold;ctx.fillRect(34,948,1012,3);
+    ctx.fillStyle=cream;ctx.textAlign='left';ctx.font='900 34px Georgia,serif';ctx.fillText('YOUR FOUR.',34,1004);
+    ctx.font='800 17px Arial,sans-serif';ctx.fillText('ONE VISUAL. ONE SQUAD. ONE NIGHT TO REMEMBER.',34,1033);
+    ctx.textAlign='right';ctx.font='900 34px Georgia,serif';ctx.fillText(RELEASE_DATE,1046,1004);
+    ctx.font='800 16px Arial,sans-serif';ctx.fillText('IN CINEMAS • '+RELEASE_YEAR,1046,1033);
+    ctx.fillStyle=cream;ctx.textAlign='center';ctx.font='700 14px Arial,sans-serif';ctx.fillText('FOUR CODE  •  '+codeValue,540,1288);
+    ctx.fillStyle=gold;ctx.font='900 30px Georgia,serif';ctx.fillText('FIND YOUR FOUR',540,1330);
+  }
+
+  if(template==='magazine'){
+    ctx.fillStyle='#fbf7ef';ctx.fillRect(0,0,FLYER_WIDTH,FLYER_HEIGHT);
+    ctx.fillStyle=navy;ctx.textAlign='left';ctx.font='800 17px Arial,sans-serif';ctx.fillText('THE FOUR / NO. 01 / '+RELEASE_YEAR,42,42);
+    ctx.textAlign='right';ctx.fillText('A FUNKE AKINDELE FILM',1038,42);
+    ctx.textAlign='center';ctx.fillStyle=navy;
+    const titleSize=textFit(ctx,'THE FOUR',950,144,104,'Georgia,serif','500');ctx.font='500 '+titleSize+'px Georgia,serif';ctx.fillText('THE FOUR',540,176);
+    ctx.fillStyle=orange;ctx.font='800 19px Arial,sans-serif';ctx.fillText('NO ONE FIGHTS ALONE',540,214);
+    const margin=34,gap=10,tileW=(1080-margin*2-gap*3)/4,tileH=850,top=258;
+    imgs.forEach((img,i)=>{
+      const x=margin+i*(tileW+gap);
+      roundedPhoto(ctx,img,x,top,tileW,tileH,8,navy,2);
+      ctx.fillStyle=cream;ctx.fillRect(x+8,top+12,62,32);
+      ctx.fillStyle=navy;ctx.textAlign='center';ctx.font='900 14px Arial,sans-serif';ctx.fillText('0'+(i+1),x+39,top+34);
+      ctx.save();ctx.translate(x+tileW/2,top+tileH-24);ctx.fillStyle=white;ctx.shadowColor='rgba(0,0,0,.45)';ctx.shadowBlur=8;ctx.font='800 12px Arial,sans-serif';ctx.fillText((members[i].name||'MEMBER 0'+(i+1)).toUpperCase(),0,0);ctx.restore();
+    });
+    ctx.fillStyle=orange;ctx.fillRect(34,1144,1012,86);
+    ctx.fillStyle=cream;ctx.textAlign='left';ctx.font='900 34px Georgia,serif';ctx.fillText('WHO ARE YOUR FOUR?',52,1198);
+    ctx.fillStyle=navy;ctx.textAlign='right';ctx.font='900 26px Arial,sans-serif';ctx.fillText('IN CINEMAS '+RELEASE_DATE,1028,1188);ctx.font='800 15px Arial,sans-serif';ctx.fillText(RELEASE_YEAR,1028,1212);
+    ctx.fillStyle=navy;ctx.textAlign='center';ctx.font='800 13px Arial,sans-serif';ctx.fillText('CREATE YOUR FOUR • SHARE YOUR FOUR • WATCH THE FOUR',540,1268);
+    ctx.fillStyle=wine;ctx.font='700 14px Arial,sans-serif';ctx.fillText('FOUR CODE  '+codeValue,540,1296);
+    ctx.fillStyle=gold;ctx.fillRect(420,1314,240,4);
+  }
+
+  if(template==='bold'){
+    ctx.fillStyle=navy;ctx.fillRect(0,0,FLYER_WIDTH,FLYER_HEIGHT);
+    ctx.fillStyle='rgba(218,175,55,.12)';ctx.textAlign='right';ctx.font='900 520px Georgia,serif';ctx.fillText('04',1040,520);
+    ctx.fillStyle=cream;ctx.textAlign='left';ctx.font='800 18px Arial,sans-serif';ctx.fillText('A FUNKE AKINDELE FILM',44,50);
+    ctx.fillStyle=gold;ctx.textAlign='right';ctx.fillText(RELEASE_YEAR,1036,50);
+    ctx.textAlign='center';ctx.fillStyle=cream;ctx.font='900 112px Georgia,serif';ctx.fillText('THE FOUR',540,160);
+    ctx.fillStyle=orange;ctx.font='800 20px Arial,sans-serif';ctx.fillText('NO ONE FIGHTS ALONE',540,198);
+    const positions=[[70,250],[557,250],[70,690],[557,690]];
+    imgs.forEach((img,i)=>{
+      const [x,y]=positions[i];
+      roundedPhoto(ctx,img,x,y,453,390,28,gold,4);
+      ctx.fillStyle='rgba(13,27,61,.72)';ctx.fillRect(x,y+324,453,66);
+      ctx.fillStyle=cream;ctx.textAlign='left';ctx.font='800 15px Arial,sans-serif';ctx.fillText((members[i].name||'MEMBER 0'+(i+1)).toUpperCase(),x+18,y+364);
+      ctx.fillStyle=gold;ctx.textAlign='right';ctx.font='900 22px Georgia,serif';ctx.fillText('0'+(i+1),x+433,y+365);
+    });
+    ctx.fillStyle=orange;ctx.fillRect(70,1134,940,7);
+    ctx.fillStyle=cream;ctx.textAlign='left';ctx.font='900 44px Georgia,serif';ctx.fillText('WHO ARE YOUR FOUR?',70,1210);
+    ctx.font='800 17px Arial,sans-serif';ctx.fillText('IN CINEMAS '+RELEASE_DATE+' • '+RELEASE_YEAR,70,1243);
+    ctx.fillStyle=gold;ctx.textAlign='right';ctx.font='900 20px Arial,sans-serif';ctx.fillText('FIND YOUR FOUR',1010,1243);
+    ctx.fillStyle=cream;ctx.textAlign='center';ctx.font='700 13px Arial,sans-serif';ctx.fillText('FOUR CODE  •  '+codeValue,540,1298);
+    ctx.fillStyle=gold;ctx.font='900 30px Georgia,serif';ctx.fillText('NO ONE FIGHTS ALONE',540,1334);
+  }
+
+  const blob=await new Promise<Blob|null>(resolve=>canvas.toBlob(resolve,'image/jpeg',.95));
+  return {dataUrl:canvas.toDataURL('image/jpeg',.95),blob};
+}
+
 export default function Home() {
   const [members,setMembers]=useState<Member[]>(freshMembers);
   const [open,setOpen]=useState(false);
@@ -57,6 +198,7 @@ export default function Home() {
   const [invitePhotoPreview,setInvitePhotoPreview]=useState<string|null>(null);
   const [reward,setReward]=useState<{qualified:boolean;reward_code:string|null;rank:number|null}|null>(null);
   const [sharedArtworkUrl,setSharedArtworkUrl]=useState<string|null>(null);
+  const [selectedTemplate,setSelectedTemplate]=useState<TemplateId>('editorial');
   const fileInputs=useRef<Array<HTMLInputElement|null>>([]);
 
   const posterUrl = process.env.NEXT_PUBLIC_THE_FOUR_POSTER_URL || '';
@@ -113,49 +255,35 @@ export default function Home() {
   }
 
   async function refreshSharedArtwork(){
-    if(!code){return;}
-    setBusy(true);setApiNote('Preparing the shared Four artwork…');
+    if(!code)return;
+    setBusy(true);setApiNote('Preparing the shared Four flyer…');
     try{
-      const data=await refreshSquad(code); const current=Array.isArray(data?.members)?data.members:[];
-      if(current.length<4 || current.some((m:{photo_url?:string|null})=>!m.photo_url)){throw new Error('All four members need a photo before the shared artwork can be refreshed.');}
-      const imgs=await Promise.all(current.sort((a:{member_number:number},b:{member_number:number})=>a.member_number-b.member_number).map((m:{photo_url?:string|null})=>new Promise<HTMLImageElement>((resolve,reject)=>{const img=new Image();img.crossOrigin='anonymous';img.onload=()=>resolve(img);img.onerror=()=>reject(new Error('Could not load one Four photo.'));img.src=m.photo_url!;})));
-      const canvas=document.createElement('canvas');canvas.width=1080;canvas.height=1350;const ctx=canvas.getContext('2d');if(!ctx)throw new Error('Could not create artwork.');
-      ctx.fillStyle='#f4efe5';ctx.fillRect(0,0,1080,1350);ctx.fillStyle='#173b4d';ctx.font='500 52px Georgia,serif';ctx.textAlign='center';ctx.fillText('THE FOUR',540,76);ctx.fillStyle='#6f1d2b';ctx.font='700 19px Arial,sans-serif';ctx.fillText('NO ONE FIGHTS ALONE',540,108);
-      const margin=46,gap=16,tileW=(1080-margin*2-gap)/2,tileH=480,top=148;
-      imgs.forEach((img,i)=>{const x=margin+(i%2)*(tileW+gap),y=top+Math.floor(i/2)*(tileH+gap);ctx.save();ctx.beginPath();ctx.roundRect(x,y,tileW,tileH,24);ctx.clip();drawCover(ctx,img,x,y,tileW,tileH);ctx.restore();ctx.strokeStyle='#6f1d2b';ctx.lineWidth=4;ctx.strokeRect(x,y,tileW,tileH);ctx.fillStyle='rgba(18,18,18,.70)';ctx.fillRect(x,y+tileH-62,tileW,62);ctx.fillStyle='#fff';ctx.textAlign='left';ctx.font='700 17px Arial,sans-serif';ctx.fillText((current[i].name||('MEMBER '+String(i+1).padStart(2,'0'))).toUpperCase(),x+16,y+tileH-24);});
-      ctx.textAlign='center';ctx.fillStyle='#6f1d2b';ctx.font='700 37px Georgia,serif';ctx.fillText('WHO ARE YOUR FOUR?',540,1215);ctx.fillStyle='#173b4d';ctx.font='700 17px Arial,sans-serif';ctx.fillText('FIND YOUR FOUR  •  BRING YOUR FOUR  •  WATCH THE FOUR',540,1250);ctx.fillStyle='#665a54';ctx.font='15px Arial,sans-serif';ctx.fillText('FOUR CODE: '+code,540,1290);
-      const url=canvas.toDataURL('image/jpeg',.94);setArtwork(url);setArtworkBlob(await new Promise<Blob|null>(resolve=>canvas.toBlob(resolve,'image/jpeg',.94)));const persisted=await persistArtwork(code,url,regPhone);setSharedArtworkUrl(persisted);setApiNote('Your shared Four artwork has been refreshed for everyone in the Four Room.');void trackEvent(code,'artwork_generated','web',{memberCount:4,persisted:true});
-    }catch(e){setApiNote(e instanceof Error?e.message:'Could not refresh the shared artwork.');}finally{setBusy(false);}
+      const data=await refreshSquad(code);
+      const current=Array.isArray(data?.members)?data.members:[] as Array<{member_number:number;name:string|null;photo_url?:string|null}>;
+      if(current.length<4 || current.some((m:{photo_url?:string|null})=>!m.photo_url)) throw new Error('All four members need a photo before the shared flyer can be refreshed.');
+      const ordered=current.slice().sort((a:{member_number:number},b:{member_number:number})=>a.member_number-b.member_number);
+      const imgs=await Promise.all(ordered.map((m:{photo_url?:string|null})=>new Promise<HTMLImageElement>((resolve,reject)=>{const img=new Image();img.crossOrigin='anonymous';img.onload=()=>resolve(img);img.onerror=()=>reject(new Error('Could not load one Four photo.'));img.src=m.photo_url!;})));
+      const flyerMembers=ordered.map(m=>({file:null,name:m.name||'',preview:m.photo_url||null}));
+      const made=await makeFourFlyer(imgs,flyerMembers,code,selectedTemplate);
+      setArtwork(made.dataUrl);setArtworkBlob(made.blob);
+      const persisted=await persistArtwork(code,made.dataUrl,regPhone);
+      setSharedArtworkUrl(persisted);
+      setApiNote('Your shared Four flyer has been refreshed for everyone in the Four Room.');
+      void trackEvent(code,'artwork_generated','web',{memberCount:4,persisted:true,template:selectedTemplate});
+    }catch(e){setApiNote(e instanceof Error?e.message:'Could not refresh the shared Four flyer.');}
+    finally{setBusy(false);}
   }
 
   async function generateArtwork(){
-    if(!complete){alert('Add all four photos before creating your Four.');return;}
+    if(!complete){alert('Add all four photos before creating your flyer.');return;}
     setBusy(true);
     try{
-      const imgs=await Promise.all(members.map(m=>new Promise<HTMLImageElement>((resolve,reject)=>{
-        const img=new Image();img.onload=()=>resolve(img);img.onerror=reject;img.src=m.preview!;
-      })));
+      const imgs=await Promise.all(members.map(m=>new Promise<HTMLImageElement>((resolve,reject)=>{const img=new Image();img.onload=()=>resolve(img);img.onerror=reject;img.src=m.preview!;})));
       const fourCode=code||makeCode();setCode(fourCode);
-      const canvas=document.createElement('canvas');canvas.width=1080;canvas.height=1350;
-      const ctx=canvas.getContext('2d');if(!ctx)return;
-      ctx.fillStyle='#f4efe5';ctx.fillRect(0,0,1080,1350);
-      ctx.fillStyle='#173b4d';ctx.font='500 52px Georgia,serif';ctx.textAlign='center';ctx.fillText('THE FOUR',540,76);
-      ctx.fillStyle='#6f1d2b';ctx.font='700 19px Arial,sans-serif';ctx.fillText('NO ONE FIGHTS ALONE',540,108);
-      const margin=46,gap=16,tileW=(1080-margin*2-gap)/2,tileH=480,top=148;
-      imgs.forEach((img,i)=>{
-        const x=margin+(i%2)*(tileW+gap),y=top+Math.floor(i/2)*(tileH+gap);
-        ctx.save();ctx.beginPath();ctx.roundRect(x,y,tileW,tileH,24);ctx.clip();drawCover(ctx,img,x,y,tileW,tileH);ctx.restore();
-        ctx.strokeStyle='#6f1d2b';ctx.lineWidth=4;ctx.strokeRect(x,y,tileW,tileH);
-        ctx.fillStyle='rgba(18,18,18,.70)';ctx.fillRect(x,y+tileH-62,tileW,62);ctx.fillStyle='#fff';ctx.textAlign='left';ctx.font='700 17px Arial,sans-serif';
-        ctx.fillText((members[i].name||('MEMBER '+String(i+1).padStart(2,'0'))).toUpperCase(),x+16,y+tileH-24);
-      });
-      ctx.textAlign='center';ctx.fillStyle='#6f1d2b';ctx.font='700 37px Georgia,serif';ctx.fillText('WHO ARE YOUR FOUR?',540,1215);
-      ctx.fillStyle='#173b4d';ctx.font='700 17px Arial,sans-serif';ctx.fillText('FIND YOUR FOUR  •  BRING YOUR FOUR  •  WATCH THE FOUR',540,1250);
-      ctx.fillStyle='#665a54';ctx.font='15px Arial,sans-serif';ctx.fillText('FOUR CODE: '+fourCode,540,1290);
-      const blob=await new Promise<Blob|null>(resolve=>canvas.toBlob(resolve,'image/jpeg',.94));
-      const artworkData=canvas.toDataURL('image/jpeg',.94);setArtwork(artworkData);setArtworkBlob(blob);setStep(3);
-      void trackEvent(fourCode,'artwork_generated','web',{memberCount:4});
-    }catch(e){setApiNote(e instanceof Error?e.message:'Could not create your Four artwork.');}
+      const made=await makeFourFlyer(imgs,members,fourCode,selectedTemplate);
+      setArtwork(made.dataUrl);setArtworkBlob(made.blob);setStep(3);
+      void trackEvent(fourCode,'artwork_generated','web',{memberCount:4,template:selectedTemplate});
+    }catch(e){setApiNote(e instanceof Error?e.message:'Could not create your Four flyer.');}
     finally{setBusy(false);}
   }
 
@@ -164,7 +292,7 @@ export default function Home() {
   async function shareFour(){
     if(!artworkBlob)return;
     if(!registered){setStep(4);setApiNote('Register your Four first so the invitation link opens a live Four Room.');return;}
-    const url=inviteUrl(),text='I found my Four. ❤️ You are one of mine. Join my Four for THE FOUR.';
+    const url=inviteUrl(),text='I found my Four. ❤️ You are one of mine. Join my Four for THE FOUR — in cinemas December 11.';
     try{
       if(navigator.share){
         const file=new File([artworkBlob],'my-four-'+code+'.jpg',{type:'image/jpeg'});
@@ -173,7 +301,7 @@ export default function Home() {
       }
     }catch{}
     try{await navigator.clipboard.writeText(text+' '+url);void trackEvent(code,'shared','clipboard');}catch{}
-    alert('Your Four invitation has been copied.');
+    alert('Your Four flyer and invitation are ready to share.');
   }
 
   function whatsapp(){if(!registered){setStep(4);setApiNote('Register your Four first so the invitation link opens a live Four Room.');return;}const url=inviteUrl();const text='I found my Four. ❤️ You are one of mine. Join my Four for THE FOUR: '+url;window.open('https://wa.me/?text='+encodeURIComponent(text),'_blank','noopener,noreferrer');void trackEvent(code,'shared','whatsapp');}
@@ -226,7 +354,7 @@ export default function Home() {
 
     <section className="hero shell">
       <div className="hero-copy"><div className="eyebrow">NO ONE FIGHTS ALONE</div><h1>Everybody<br/><em>has a Four.</em></h1><p>The people you call first. The friends who show up. The people you want beside you when something big happens.</p><div className="hero-actions"><button className="btn btn-primary" onClick={()=>{setOpen(true);setStep(1)}}>Create My Four</button><a className="btn btn-ghost" href="#how">See how it works</a></div></div>
-      <div className="hero-poster">{posterUrl?<img src={posterUrl} alt="THE FOUR official campaign artwork"/>:<><div className="poster-title">THE<br/><span>FOUR</span></div><div className="poster-note">IN CINEMAS<br/><strong>DECEMBER 11</strong></div><div className="poster-tag">NO ONE<br/>FIGHTS ALONE</div><div className="poster-four">4</div></>}</div>
+      <div className="hero-poster">{posterUrl?<img src={posterUrl} alt="THE FOUR official campaign artwork"/>:<><div className="poster-kicker">A FUNKE AKINDELE FILM</div><div className="poster-title">THE<br/><span>FOUR</span></div><div className="poster-sub">NO ONE FIGHTS ALONE</div><div className="poster-silhouette">{[1,2,3,4].map(n=><span key={n}>{n}</span>)}</div><div className="poster-note">IN CINEMAS<br/><strong>DECEMBER 11</strong></div><div className="poster-year">2026</div></>}</div>
     </section>
 
     <section id="how" className="section shell"><div className="eyebrow">THE CAMPAIGN LOOP</div><h2>Find. Create. Share. Watch.</h2><p className="lead">The campaign gives people something to do — and something to share — while creating a measurable path toward the cinema.</p><div className="step-grid">
@@ -241,8 +369,8 @@ export default function Home() {
 
     {open && <div className="modal" role="dialog" aria-modal="true"><div className="modal-card"><button className="modal-x" onClick={()=>{setOpen(false);reset()}} aria-label="Close">×</button><div className="eyebrow">FIND YOUR FOUR</div><div className="wizard-dots">{[1,2,3,4].map(n=><span key={n} className={step===n?'active':''}/>)}</div>
       {step===1&&<div className="wizard-panel"><h2>Start with your Four.</h2><p>Choose four people you want beside you. You can build it together or invite them one by one.</p><div className="modal-actions"><span/><button className="btn btn-primary" onClick={()=>setStep(2)}>Add My Four →</button></div></div>}
-      {step===2&&<div className="wizard-panel"><h2>Add four photos.</h2><p>Upload four individual photos. The experience keeps the exact Four structure: 01, 02, 03, 04.</p><div className="photo-grid">{members.map((m,i)=><div className="photo-slot" key={i}><div className="slot-head"><span>0{i+1}</span><small>MEMBER 0{i+1}</small></div><button className="preview-btn" onClick={()=>fileInputs.current[i]?.click()}>{m.preview?<img src={m.preview} alt="" />:<span>ADD PHOTO</span>}</button><input ref={el=>{fileInputs.current[i]=el}} type="file" accept="image/*" hidden onChange={e=>pick(i,e.target.files?.[0]||null)}/><input className="name-input" value={m.name} placeholder="Name (optional)" onChange={e=>setName(i,e.target.value)}/></div>)}</div><div className="modal-actions"><button className="btn btn-ghost" onClick={()=>setStep(1)}>Back</button><button className="btn btn-primary" disabled={busy} onClick={generateArtwork}>{busy?'Creating…':'Create My Four'}</button></div></div>}
-      {step===3&&<div className="wizard-panel artwork-panel"><h2>YOUR FOUR IS READY.</h2>{artwork&&<img className="artwork" src={artwork} alt="Personalised Four campaign artwork"/>}<div className="code">FOUR CODE <strong>{code}</strong></div><p>Share the visual and invitation link with your Four. On supported phones, the native share sheet can share the image directly.</p><div className="share-actions"><button className="btn btn-primary" onClick={shareFour}>Share My Four</button><button className="btn btn-ghost" onClick={whatsapp}>WhatsApp</button><button className="btn btn-ghost" onClick={download}>Download</button></div><div className="modal-actions"><button className="btn btn-ghost" onClick={()=>setStep(2)}>Edit</button><button className="btn btn-primary" onClick={()=>setStep(4)}>Continue to Watch →</button></div></div>}
+      {step===2&&<div className="wizard-panel"><h2>Make your Four a flyer.</h2><p>Choose a poster style inspired by the official campaign's editorial, cinematic and magazine covers — then add exactly four people.</p><div className="template-picker">{TEMPLATE_META.map(t=><button type="button" key={t.id} className={'template-card template-'+t.id+(selectedTemplate===t.id?' selected':'')} onClick={()=>setSelectedTemplate(t.id)}><div className="template-preview"><span className="tp-title">THE FOUR</span><span className="tp-four">0{t.id==='bold'?4:t.id==='sunset'?2:t.id==='magazine'?3:1}</span><div className="tp-faces">{[1,2,3,4].map(n=><i key={n}/>)}</div></div><strong>{t.name}</strong><small>{t.note}</small></button>)}</div><div className="photo-grid">{members.map((m,i)=><div className="photo-slot" key={i}><div className="slot-head"><span>0{i+1}</span><small>MEMBER 0{i+1}</small></div><button className="preview-btn" onClick={()=>fileInputs.current[i]?.click()}>{m.preview?<img src={m.preview} alt="" />:<span>ADD PHOTO</span>}</button><input ref={el=>{fileInputs.current[i]=el}} type="file" accept="image/*" hidden onChange={e=>pick(i,e.target.files?.[0]||null)}/><input className="name-input" value={m.name} placeholder="Name (optional)" onChange={e=>setName(i,e.target.value)}/></div>)}</div><div className="modal-actions"><button className="btn btn-ghost" onClick={()=>setStep(1)}>Back</button><button className="btn btn-primary" disabled={busy} onClick={generateArtwork}>{busy?'Creating…':'Create My Four'}</button></div></div>}
+      {step===3&&<div className="wizard-panel artwork-panel"><h2>YOUR FOUR FLYER IS READY.</h2><div className="artwork-style-row"><div><div className="eyebrow">POSTER STYLE</div><strong>{TEMPLATE_META.find(t=>t.id===selectedTemplate)?.name}</strong></div><div className="template-switch">{TEMPLATE_META.map(t=><button type="button" key={t.id} className={selectedTemplate===t.id?'active':''} onClick={async()=>{setSelectedTemplate(t.id);setBusy(true);try{const imgs=await Promise.all(members.map(m=>new Promise<HTMLImageElement>((resolve,reject)=>{const img=new Image();img.onload=()=>resolve(img);img.onerror=reject;img.src=m.preview!;})));const made=await makeFourFlyer(imgs,members,code,t.id);setArtwork(made.dataUrl);setArtworkBlob(made.blob);}catch(e){setApiNote(e instanceof Error?e.message:'Could not switch poster style.');}finally{setBusy(false);}}}>{t.name}</button>)}</div></div>{artwork&&<img className="artwork" src={artwork} alt="Personalised Four campaign flyer"/>}<div className="code">FOUR CODE <strong>{code}</strong></div><p>Share the visual and invitation link with your Four. On supported phones, the native share sheet can share the image directly.</p><div className="share-actions"><button className="btn btn-primary" onClick={shareFour}>Share My Four</button><button className="btn btn-ghost" onClick={whatsapp}>WhatsApp</button><button className="btn btn-ghost" onClick={download}>Download</button></div><div className="modal-actions"><button className="btn btn-ghost" onClick={()=>setStep(2)}>Edit</button><button className="btn btn-primary" onClick={()=>setStep(4)}>Continue to Watch →</button></div></div>}
       {step===4&&<div className="wizard-panel"><h2>{isInvite?'You’ve been invited into this Four.':'Bring your Four to the cinema.'}</h2>{!registered?<><p>{isInvite?'Your Four has exactly four places. Claim the next available place and join the group.':'Register the Four captain first. In production, this becomes a consent-based campaign lead.'}</p>{isInvite && <div className="invite-members">{[1,2,3,4].map(n=>{const m=inviteMembers.find(x=>x.member_number===n);return <div className={m?'slot claimed':'slot'} key={n}><span>0{n}</span>{m?.photo_url?<img src={m.photo_url} alt="" />:<div className="room-avatar">{m?'TEXT':'OPEN'}</div>}<b>{m?.name||'OPEN'}</b></div>})}</div>}{isInvite && <div className="invite-photo"><div className="eyebrow">YOUR FOUR PHOTO</div><button className="preview-btn" onClick={()=>document.getElementById('invite-photo-input')?.click()}>{invitePhotoPreview?<img src={invitePhotoPreview} alt="" />:<span>ADD YOUR PHOTO</span>}</button><input id="invite-photo-input" type="file" accept="image/*" hidden onChange={e=>{const file=e.target.files?.[0]||null;if(!file)return;if(file.size>8*1024*1024){alert('Please use an image smaller than 8MB.');return;}setInvitePhoto(file);if(invitePhotoPreview)URL.revokeObjectURL(invitePhotoPreview);setInvitePhotoPreview(URL.createObjectURL(file));}}/><p className="inline-note">Your photo is saved to your Four after you claim your place.</p></div>}<div className="form-row"><input value={regName} onChange={e=>setRegName(e.target.value)} placeholder="Your name"/><input value={regPhone} onChange={e=>setRegPhone(e.target.value)} placeholder="+234 phone"/><input value={regEmail} onChange={e=>setRegEmail(e.target.value)} placeholder="Email (optional)"/></div><label className="consent"><input type="checkbox" checked={consent} onChange={e=>setConsent(e.target.checked)}/> I agree to receive campaign reminders and information about THE FOUR.</label><button className="btn btn-primary" disabled={busy} onClick={register}>{busy?'Saving…':'Register My Four'}</button>{apiNote&&<div className="inline-note">{apiNote}</div>}</>:<><div className="success"><strong>{isInvite?'You’ve joined Four '+code+'.':'Four '+code+' is registered.'}</strong>{memberNumber&&<><br/>You are member {String(memberNumber).padStart(2,'0')}.</>}<br/>{apiNote}</div>{sharedArtworkUrl&&<div className="shared-artwork"><div><div className="eyebrow">SHARED FOUR ARTWORK</div><p>The latest campaign visual is saved to the Four Room for the group.</p></div><a className="btn btn-ghost" href={sharedArtworkUrl} target="_blank" rel="noreferrer">Open Artwork ↗</a></div>}{reward?.qualified && <div className="reward-banner"><div className="eyebrow">FOUR EXPERIENCE</div><strong>Congratulations — your Four qualified.</strong><span>Reward code: {reward.reward_code}</span>{reward.rank&&<span>Place {reward.rank} of the first 500 qualifying Fours.</span>}</div>}<div className="cinema-card"><div className="eyebrow">CHOOSE YOUR CINEMA • DEMO INVENTORY</div><select value={chosenCinema} onChange={e=>{setChosenCinema(e.target.value);setChosenShowtime('')}}><option value="">Select a cinema</option>{CINEMAS.map(c=><option key={c.name} value={c.name}>{c.name}</option>)}</select><input type="date" min={new Date().toISOString().slice(0,10)} value={chosenDate} onChange={e=>setChosenDate(e.target.value)}/><select value={chosenShowtime} onChange={e=>setChosenShowtime(e.target.value)} disabled={!cinema}><option value="">Select a showtime</option>{cinema?.showtimes.map(t=><option key={t}>{t}</option>)}</select><button className="btn btn-primary" disabled={busy} onClick={chooseCinema}>{busy?'Saving…':'Save My Cinema Choice'}</button><a className="btn btn-ghost" href={(typeof window!=='undefined'?window.location.pathname.replace(/\/?$/,'/'):'./')+'four/?code='+encodeURIComponent(code)}>Open Four Room ↗</a>{chosenCinema&&chosenDate&&chosenShowtime&&<div className="booking-row"><div><small>YOUR FOUR</small><strong>{chosenCinema}</strong><span>{chosenDate} • {chosenShowtime}</span></div>{ticketingUrl?<a className="btn btn-ghost" onClick={()=>void trackEvent(code,'ticket_clicked','web',{cinema:chosenCinema,showtime:chosenShowtime})} href={ticketingUrl} target="_blank" rel="noreferrer">Continue to Tickets →</a>:<button className="btn btn-ghost" onClick={()=>{void trackEvent(code,'ticket_clicked','web',{cinema:chosenCinema,showtime:chosenShowtime});alert('Ticketing partner link will be connected here in production.')}}>Continue to Tickets →</button>}</div>}</div></>}</div>}
     </div></div>}
   </main>
