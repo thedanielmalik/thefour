@@ -163,6 +163,7 @@ export default function Home() {
 
   async function shareFour(){
     if(!artworkBlob)return;
+    if(!registered){setStep(4);setApiNote('Register your Four first so the invitation link opens a live Four Room.');return;}
     const url=inviteUrl(),text='I found my Four. ❤️ You are one of mine. Join my Four for THE FOUR.';
     try{
       if(navigator.share){
@@ -175,7 +176,7 @@ export default function Home() {
     alert('Your Four invitation has been copied.');
   }
 
-  function whatsapp(){const url=inviteUrl();const text='I found my Four. ❤️ You are one of mine. Join my Four for THE FOUR: '+url;window.open('https://wa.me/?text='+encodeURIComponent(text),'_blank','noopener,noreferrer');void trackEvent(code,'shared','whatsapp');}
+  function whatsapp(){if(!registered){setStep(4);setApiNote('Register your Four first so the invitation link opens a live Four Room.');return;}const url=inviteUrl();const text='I found my Four. ❤️ You are one of mine. Join my Four for THE FOUR: '+url;window.open('https://wa.me/?text='+encodeURIComponent(text),'_blank','noopener,noreferrer');void trackEvent(code,'shared','whatsapp');}
 
   function download(){if(!artworkBlob)return;const a=document.createElement('a');a.href=URL.createObjectURL(artworkBlob);a.download='my-four-'+(code||'F4')+'.jpg';a.click();setTimeout(()=>URL.revokeObjectURL(a.href),2000);}
 
