@@ -173,8 +173,7 @@ async function handleFours(request: Request) {
 
     if (requestedMember && requestedOccupied) {
       const samePerson =
-        String(requestedOccupied.phone || "").trim() === String(body.phone || "").trim() &&
-        String(requestedOccupied.email || "").trim() === String(body.email || "").trim();
+        String(requestedOccupied.phone || "").trim() === String(body.phone || "").trim();
 
       if (!samePerson) return json({ error: "That Four place is already claimed." }, 409);
     } else if (!requestedMember) {
